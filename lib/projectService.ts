@@ -16,6 +16,8 @@ export type ProjectModule = {
   enabled: boolean;
   status: string;
   scheduledAt?: string | null;
+  scheduledTime?: string | null;
+  assignedTo?: string | null;
   completedAt?: unknown;
   delayed?: boolean;
 };
@@ -103,6 +105,18 @@ function companyProjectDocument(companyId: string, projectId: string) {
   return doc(db, 'companies', companyId, 'projects', projectId);
 }
 
+function withModuleDefaults(module: ProjectModule | undefined, status: string): ProjectModule {
+  return {
+    enabled: module?.enabled ?? true,
+    status: module?.status ?? status,
+    scheduledAt: module?.scheduledAt ?? null,
+    scheduledTime: module?.scheduledTime ?? null,
+    assignedTo: module?.assignedTo ?? null,
+    completedAt: module?.completedAt,
+    delayed: module?.delayed ?? false,
+  };
+}
+
 function normalizeProject(id: string, companyId: string, data: Record<string, unknown>): Project {
   const modules = (data.modules ?? {}) as Partial<Record<ModuleKey, ProjectModule>>;
 
@@ -122,11 +136,11 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       address: '',
     },
     modules: {
-      survey: modules.survey ?? { enabled: true, status: 'Folyamatban', scheduledAt: null },
-      quote: modules.quote ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
-      contract: modules.contract ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
-      construction: modules.construction ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
-      finance: modules.finance ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
+      survey: withModuleDefaults(modules.survey, 'Folyamatban'),
+      quote: withModuleDefaults(modules.quote, 'Intézendő'),
+      contract: withModuleDefaults(modules.contract, 'Intézendő'),
+      construction: withModuleDefaults(modules.construction, 'Intézendő'),
+      finance: withModuleDefaults(modules.finance, 'Intézendő'),
     },
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -174,6 +188,7 @@ export async function createNewInquiry(
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const code = `PRJ-${Date.now().toString().slice(-6)}`;
+  const emptySchedule = { scheduledAt: null, scheduledTime: null, assignedTo: null };
 
   const documentReference = await addDoc(companyProjectsCollection(companyId), {
     companyId,
@@ -190,11 +205,11 @@ export async function createNewInquiry(
       email: '',
     },
     modules: {
-      survey: { enabled: true, status: 'Folyamatban', scheduledAt: null },
-      quote: { enabled: true, status: 'Intézendő', scheduledAt: null },
-      contract: { enabled: true, status: 'Intézendő', scheduledAt: null },
-      construction: { enabled: true, status: 'Intézendő', scheduledAt: null },
-      finance: { enabled: true, status: 'Intézendő', scheduledAt: null },
+      survey: { enabled: true, status: 'Folyamatban', ...emptySchedule },
+      quote: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      contract: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      construction: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      finance: { enabled: true, status: 'Intézendő', ...emptySchedule },
     },
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -212,9 +227,7 @@ export async function updateProjectModuleStatus(
   const projectReference = companyProjectDocument(companyId, projectId);
   const projectSnapshot = await getDoc(projectReference);
 
-  if (!projectSnapshot.exists()) {
-    throw new Error('A projekt nem található.');
-  }
+  if (!projectSnapshot.exists()) throw new Error('A projekt nem található.');
 
   const project = normalizeProject(projectId, companyId, projectSnapshot.data());
   if (!project.modules[moduleKey].enabled) {
@@ -234,7 +247,6 @@ export async function updateProjectModuleStatus(
     updatedAt: serverTimestamp(),
   };
 
-  // Kézi előrelépés: az előző, elérhető modulokat készre állítjuk.
   if (status !== 'Intézendő') {
     moduleOrder.slice(0, selectedIndex).forEach((key) => {
       if (!project.modules[key].enabled) return;
@@ -244,7 +256,6 @@ export async function updateProjectModuleStatus(
     });
   }
 
-  // Kézi visszalépés: ha egy korábbi szakasz újra aktív, az utána lévők visszaállnak.
   if (!completed) {
     moduleOrder.slice(selectedIndex + 1).forEach((key) => {
       if (!project.modules[key].enabled) return;
@@ -255,7 +266,6 @@ export async function updateProjectModuleStatus(
     updates.lastAction = `Projekt visszaállítva: ${moduleLabels[moduleKey]} – ${status}`;
   }
 
-  // Normál automatikus továbbhaladás befejezett szakasznál.
   if (completed) {
     const nextModuleKey = moduleOrder
       .slice(selectedIndex + 1)
@@ -275,20 +285,41 @@ export async function updateProjectModuleStatus(
   await updateDoc(projectReference, updates);
 }
 
+export async function updateProjectModuleSchedule(
+  projectId: string,
+  moduleKey: ModuleKey,
+  schedule: {
+    date: string | null;
+    time: string | null;
+    assignedTo: string | null;
+  },
+) {
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
+  const readableSchedule = schedule.date
+    ? `${schedule.date}${schedule.time ? ` ${schedule.time}` : ''}`
+    : null;
+
+  await updateDoc(projectReference, {
+    [`modules.${moduleKey}.scheduledAt`]: schedule.date,
+    [`modules.${moduleKey}.scheduledTime`]: schedule.time,
+    [`modules.${moduleKey}.assignedTo`]: schedule.assignedTo,
+    lastAction: readableSchedule
+      ? `${moduleLabels[moduleKey]} időpont: ${readableSchedule}`
+      : `${moduleLabels[moduleKey]} időpont törölve`,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function updateProjectModuleDate(
   projectId: string,
   moduleKey: ModuleKey,
   scheduledAt: string | null,
 ) {
-  const companyId = await getAuthenticatedCompanyId();
-  const projectReference = companyProjectDocument(companyId, projectId);
-
-  await updateDoc(projectReference, {
-    [`modules.${moduleKey}.scheduledAt`]: scheduledAt,
-    lastAction: scheduledAt
-      ? `${moduleLabels[moduleKey]} időpont: ${scheduledAt}`
-      : `${moduleLabels[moduleKey]} időpont törölve`,
-    updatedAt: serverTimestamp(),
+  await updateProjectModuleSchedule(projectId, moduleKey, {
+    date: scheduledAt,
+    time: null,
+    assignedTo: null,
   });
 }
 
