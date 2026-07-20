@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const modules = [
   "Felmérés",
   "Ajánlat",
@@ -17,6 +19,9 @@ export default function HomePage() {
           többcéges jogosultságkezelést, a projektfolyamatot és az előfizetési
           modulokat.
         </p>
+        <Link className="primary-link" href="/login">
+          Bejelentkezés
+        </Link>
       </section>
 
       <section className="panel" aria-labelledby="modules-heading">
