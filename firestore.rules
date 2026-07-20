@@ -1,132 +1,90 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function uid() {
-      return request.auth.uid;
+    function profile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function userPath() {
-      return /databases/$(database)/documents/users/$(uid());
+    function activeUser() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profile().active == true;
     }
 
-    function hasUserProfile() {
-      return isSignedIn() && exists(userPath());
+    function superAdmin() {
+      return activeUser() && profile().role == 'superadmin';
     }
 
-    function currentUser() {
-      return get(userPath()).data;
+    function belongsTo(companyId) {
+      return activeUser()
+        && (superAdmin() || profile().companyId == companyId);
     }
 
-    function isActiveUser() {
-      return hasUserProfile() &&
-        (!("active" in currentUser()) || currentUser().active == true);
+    function companyAdmin(companyId) {
+      return belongsTo(companyId)
+        && (superAdmin() || profile().role == 'company_admin');
     }
 
-    function profileCompanyMatches(companyId) {
-      return isActiveUser() &&
-        ("companyId" in currentUser()) &&
-        currentUser().companyId == companyId;
-    }
-
-    function memberPath(companyId) {
-      return /databases/$(database)/documents/companies/$(companyId)/members/$(uid());
-    }
-
-    function hasMemberDocument(companyId) {
-      return isSignedIn() && exists(memberPath(companyId));
-    }
-
-    function isMemberOf(companyId) {
-      return isActiveUser() &&
-        (hasMemberDocument(companyId) || profileCompanyMatches(companyId));
-    }
-
-    function isAdminOf(companyId) {
-      return isMemberOf(companyId) && (
-        (hasMemberDocument(companyId) && get(memberPath(companyId)).data.role == 'admin') ||
-        (profileCompanyMatches(companyId) && currentUser().role in ['admin', 'company_admin', 'Vezető'])
-      );
-    }
-
+    // A felhasználó a saját profilját olvashatja.
     match /users/{userId} {
-      allow read: if isSignedIn() && uid() == userId;
+      allow read: if activeUser()
+        && (superAdmin() || request.auth.uid == userId);
 
-      allow create: if isSignedIn() && uid() == userId;
-
-      allow update: if isSignedIn() && uid() == userId
+      // Saját alapadatok módosíthatók, jogosultsági mezők nem.
+      allow update: if activeUser()
+        && request.auth.uid == userId
         && request.resource.data.companyId == resource.data.companyId
         && request.resource.data.role == resource.data.role
-        && request.resource.data.active == resource.data.active
-        && request.resource.data.isSuperAdmin == resource.data.isSuperAdmin;
+        && request.resource.data.active == resource.data.active;
 
-      allow delete: if false;
+      allow create, delete: if superAdmin();
     }
 
+    // Cég alapadatai.
     match /companies/{companyId} {
-      allow read: if isMemberOf(companyId);
-      allow create: if isSignedIn();
-      allow update, delete: if isAdminOf(companyId);
+      allow read: if belongsTo(companyId);
+      allow create, update, delete: if companyAdmin(companyId);
 
-      match /members/{memberId} {
-        allow read: if isMemberOf(companyId);
-
-        allow create: if isAdminOf(companyId) ||
-          (isSignedIn() && uid() == memberId && profileCompanyMatches(companyId));
-
-        allow update: if isAdminOf(companyId);
-        allow delete: if isAdminOf(companyId) || uid() == memberId;
+      // A CRM működéséhez használt céges modulok.
+      match /{module}/{documentId} {
+        allow read, create, update, delete: if belongsTo(companyId)
+          && module in [
+            'projects',
+            'events',
+            'surveys',
+            'constructions',
+            'executions',
+            'quotes',
+            'contracts',
+            'finances',
+            'files'
+          ];
       }
 
-      match /settings/{settingId} {
-        allow read: if isMemberOf(companyId);
-        allow create, update, delete: if isAdminOf(companyId);
+      // Jogosultsági és céges beállítások csak adminnak.
+      match /{adminSection}/{documentId} {
+        allow read: if belongsTo(companyId)
+          && adminSection in ['members', 'settings', 'invites'];
+
+        allow create, update, delete: if companyAdmin(companyId)
+          && adminSection in ['members', 'settings', 'invites'];
       }
 
-      match /invites/{inviteId} {
-        allow read: if isMemberOf(companyId) ||
-          (isSignedIn() && resource.data.email == request.auth.token.email);
-
-        allow create: if isAdminOf(companyId);
-
-        allow update: if isAdminOf(companyId) ||
-          (isSignedIn() && resource.data.email == request.auth.token.email);
-
-        allow delete: if isAdminOf(companyId);
-      }
-
-      match /projects/{projectId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
-      match /events/{eventId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
-      match /surveys/{surveyId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
-      match /constructions/{constructionId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
-      match /quotes/{quoteId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
-      match /files/{fileId} {
-        allow read, create, update, delete: if isMemberOf(companyId);
-      }
-
+      // Napló csak olvasható, kliensből nem írható.
       match /activityLog/{logId} {
-        allow read: if isMemberOf(companyId);
+        allow read: if belongsTo(companyId);
         allow write: if false;
       }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
