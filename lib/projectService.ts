@@ -7,7 +7,6 @@ import {
   query,
   serverTimestamp,
   updateDoc,
-  where,
 } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { auth, db } from './firebase';
@@ -77,6 +76,14 @@ async function getAuthenticatedCompanyId(): Promise<string> {
   return profile.companyId;
 }
 
+function companyProjectsCollection(companyId: string) {
+  return collection(db, 'companies', companyId, 'projects');
+}
+
+function companyProjectDocument(companyId: string, projectId: string) {
+  return doc(db, 'companies', companyId, 'projects', projectId);
+}
+
 export function subscribeToCompanyProjects(
   _legacyCompanyId: string,
   callback: (projects: Project[]) => void,
@@ -88,16 +95,14 @@ export function subscribeToCompanyProjects(
     .then((companyId) => {
       if (cancelled) return;
 
-      const projectsQuery = query(
-        collection(db, 'projects'),
-        where('companyId', '==', companyId),
-      );
+      const projectsQuery = query(companyProjectsCollection(companyId));
 
       unsubscribeProjects = onSnapshot(
         projectsQuery,
         (snapshot) => {
           const projects = snapshot.docs.map((projectDocument) => ({
             id: projectDocument.id,
+            companyId,
             ...projectDocument.data(),
           })) as Project[];
 
@@ -127,7 +132,7 @@ export async function createNewInquiry(
 ) {
   const companyId = await getAuthenticatedCompanyId();
 
-  const documentReference = await addDoc(collection(db, 'projects'), {
+  const documentReference = await addDoc(companyProjectsCollection(companyId), {
     companyId,
     title,
     status: 'Érdeklődés',
@@ -145,7 +150,8 @@ export async function createNewInquiry(
 }
 
 export async function updateProjectStatus(projectId: string, newStatus: string) {
-  const projectReference = doc(db, 'projects', projectId);
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
 
   await updateDoc(projectReference, {
     status: newStatus,
@@ -161,7 +167,8 @@ export async function saveSurveyData(
   damageType: string,
   notes: string,
 ) {
-  const projectReference = doc(db, 'projects', projectId);
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
 
   await updateDoc(projectReference, {
     status: 'Árajánlat készítés',
@@ -182,7 +189,8 @@ export async function saveQuoteData(
   materialCost: number,
   laborCost: number,
 ) {
-  const projectReference = doc(db, 'projects', projectId);
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
   const totalCost = materialCost + laborCost;
 
   await updateDoc(projectReference, {
@@ -200,12 +208,13 @@ export async function saveQuoteData(
 }
 
 export async function triggerQuoteEmail(projectId: string) {
+  const companyId = await getAuthenticatedCompanyId();
   const functionsInstance = getFunctions(undefined, 'europe-west1');
   const sendQuoteCallable = httpsCallable<
-    { projectId: string },
+    { companyId: string; projectId: string },
     { success: boolean }
   >(functionsInstance, 'sendQuoteWithBuffer');
 
-  const result = await sendQuoteCallable({ projectId });
+  const result = await sendQuoteCallable({ companyId, projectId });
   return result.data;
 }
