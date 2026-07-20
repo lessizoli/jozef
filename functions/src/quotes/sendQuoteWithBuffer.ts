@@ -17,19 +17,25 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   const { projectId } = request.data;
   if (!projectId) throw new HttpsError('invalid-argument', 'Hiányzó projektazonosító.');
 
-  // 1. Projekt adatok kiolvasása a Firestore-ból
-  const projectSnap = await db.doc(`projects/${projectId}`).get();
-  if (!projectSnap.exists) throw new HttpsError('not-found', 'A projekt nem található.');
-  const project = projectSnap.data();
-
-  // 2. Biztonsági ellenőrzés (Multi-Tenant izoláció)
+  // 1. Felhasználó és cég ellenőrzése (multi-tenant izoláció)
   const userSnap = await db.doc(`users/${callerUid}`).get();
-  if (!userSnap.exists || userSnap.data()?.companyId !== project?.companyId) {
+  const user = userSnap.data();
+  if (!userSnap.exists || !user?.companyId || user.active === false) {
     throw new HttpsError('permission-denied', 'Nincs jogosultságod ehhez a projekthez.');
   }
 
+  // 2. Projekt betöltése kizárólag a bejelentkezett felhasználó cégéből
+  const projectRef = db.doc(`companies/${user.companyId}/projects/${projectId}`);
+  const projectSnap = await projectRef.get();
+  if (!projectSnap.exists) throw new HttpsError('not-found', 'A projekt nem található.');
+  const project = projectSnap.data();
+
   if (!project?.quoteData) {
     throw new HttpsError('failed-precondition', 'Ehhez a projekthez még nem készült kalkuláció.');
+  }
+
+  if (!project.client?.email) {
+    throw new HttpsError('failed-precondition', 'Az ügyfél e-mail-címe nincs megadva.');
   }
 
   // 3. PDF generálása a memóriában (Buffer)
@@ -69,7 +75,7 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
 
   await transporter.sendMail({
     from: `"Envision PMS" <${SMTP_USER.value()}>`,
-    to: project.client?.email || 'teszt@email.com', // Ha nincs megadva, ideiglenes cím
+    to: project.client.email,
     subject: `Árajánlat - ${project.title}`,
     text: `Tisztelt ${project.client?.name}!\n\nMellékelten küldjük a kért árajánlatot.`,
     attachments: [
@@ -81,8 +87,10 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   });
 
   // 5. Státusz frissítése Firestore-ban
-  await db.doc(`projects/${projectId}`).update({
-    status: 'Árajánlat elküldve',
+  await projectRef.update({
+    'modules.quote.status': 'Kiküldve',
+    status: 'Folyamatban',
+    lastAction: 'Ajánlat: Kiküldve',
     updatedAt: new Date()
   });
 
