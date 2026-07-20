@@ -1,7 +1,17 @@
-import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { auth, db } from './firebase';
 
-// 1. A teljes, kibővített adatmodell
 export interface Project {
   id: string;
   companyId: string;
@@ -17,134 +27,185 @@ export interface Project {
     areaSize: number;
     damageType: string;
     notes: string;
-    surveyedAt?: any;
+    surveyedAt?: unknown;
   };
   quoteData?: {
     materialCost: number;
     laborCost: number;
     totalCost: number;
-    generatedAt?: any;
+    generatedAt?: unknown;
   };
-  createdAt: any;
-  updatedAt: any;
+  createdAt: unknown;
+  updatedAt: unknown;
 }
 
-// 2. Valós idejű figyelő
-export function subscribeToCompanyProjects(companyId: string, callback: (projects: Project[]) => void) {
-  const q = query(
-    collection(db, 'projects'),
-    where('companyId', '==', companyId)
-  );
+type UserProfile = {
+  companyId?: string | null;
+  role?: string;
+  active?: boolean;
+};
 
-  return onSnapshot(q, (snapshot) => {
-    const projects: Project[] = [];
-    snapshot.forEach((doc) => {
-      projects.push({ id: doc.id, ...doc.data() } as Project);
+async function getAuthenticatedProfile(): Promise<UserProfile> {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error('Nincs bejelentkezett felhasználó.');
+  }
+
+  const profileSnapshot = await getDoc(doc(db, 'users', currentUser.uid));
+
+  if (!profileSnapshot.exists()) {
+    throw new Error('A felhasználói profil nem található a Firestore-ban.');
+  }
+
+  const profile = profileSnapshot.data() as UserProfile;
+
+  if (profile.active === false) {
+    throw new Error('A felhasználói fiók inaktív.');
+  }
+
+  return profile;
+}
+
+async function getAuthenticatedCompanyId(): Promise<string> {
+  const profile = await getAuthenticatedProfile();
+
+  if (!profile.companyId) {
+    throw new Error('A felhasználóhoz nincs companyId rendelve.');
+  }
+
+  return profile.companyId;
+}
+
+export function subscribeToCompanyProjects(
+  _legacyCompanyId: string,
+  callback: (projects: Project[]) => void,
+) {
+  let unsubscribeProjects: (() => void) | undefined;
+  let cancelled = false;
+
+  void getAuthenticatedCompanyId()
+    .then((companyId) => {
+      if (cancelled) return;
+
+      const projectsQuery = query(
+        collection(db, 'projects'),
+        where('companyId', '==', companyId),
+      );
+
+      unsubscribeProjects = onSnapshot(
+        projectsQuery,
+        (snapshot) => {
+          const projects = snapshot.docs.map((projectDocument) => ({
+            id: projectDocument.id,
+            ...projectDocument.data(),
+          })) as Project[];
+
+          callback(projects);
+        },
+        (error) => {
+          console.error('Hiba a projektek valós idejű betöltésekor:', error);
+        },
+      );
+    })
+    .catch((error) => {
+      console.error('A projektlista nem indítható el:', error);
     });
-    callback(projects);
-  }, (error) => {
-    console.error("Hiba a projektek valós idejű betöltésekor:", error);
+
+  return () => {
+    cancelled = true;
+    unsubscribeProjects?.();
+  };
+}
+
+export async function createNewInquiry(
+  _legacyCompanyId: string,
+  title: string,
+  clientName: string,
+  clientAddress: string,
+  clientPhone: string,
+) {
+  const companyId = await getAuthenticatedCompanyId();
+
+  const documentReference = await addDoc(collection(db, 'projects'), {
+    companyId,
+    title,
+    status: 'Érdeklődés',
+    client: {
+      name: clientName,
+      address: clientAddress,
+      phone: clientPhone,
+      email: '',
+    },
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
   });
+
+  return { success: true, id: documentReference.id };
 }
 
-// 3. Új érdeklődés mentése
-export async function createNewInquiry(companyId: string, title: string, clientName: string, clientAddress: string, clientPhone: string) {
-  try {
-    const docRef = await addDoc(collection(db, 'projects'), {
-      companyId,
-      title,
-      status: 'Érdeklődés',
-      client: {
-        name: clientName,
-        address: clientAddress,
-        phone: clientPhone,
-        email: ''
-      },
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    return { success: true, id: docRef.id };
-  } catch (error) {
-    console.error("Hiba az érdeklődés rögzítésekor:", error);
-    throw error;
-  }
-}
-
-// 4. Manuális vagy alapértelmezett fázisváltás
 export async function updateProjectStatus(projectId: string, newStatus: string) {
-  try {
-    const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, {
-      status: newStatus,
-      updatedAt: serverTimestamp()
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Hiba a státusz frissítésekor:", error);
-    throw error;
-  }
+  const projectReference = doc(db, 'projects', projectId);
+
+  await updateDoc(projectReference, {
+    status: newStatus,
+    updatedAt: serverTimestamp(),
+  });
+
+  return { success: true };
 }
 
-// 5. Felmérési adatok mentése
-export async function saveSurveyData(projectId: string, areaSize: number, damageType: string, notes: string) {
-  try {
-    const projectRef = doc(db, 'projects', projectId);
-    await updateDoc(projectRef, {
-      status: 'Árajánlat készítés',
-      surveyData: {
-        areaSize,
-        damageType,
-        notes,
-        surveyedAt: serverTimestamp()
-      },
-      updatedAt: serverTimestamp()
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Hiba a felmérési adatok mentésekor:", error);
-    throw error;
-  }
+export async function saveSurveyData(
+  projectId: string,
+  areaSize: number,
+  damageType: string,
+  notes: string,
+) {
+  const projectReference = doc(db, 'projects', projectId);
+
+  await updateDoc(projectReference, {
+    status: 'Árajánlat készítés',
+    surveyData: {
+      areaSize,
+      damageType,
+      notes,
+      surveyedAt: serverTimestamp(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+
+  return { success: true };
 }
 
-// 6. Árajánlat kalkuláció mentése
-export async function saveQuoteData(projectId: string, materialCost: number, laborCost: number) {
-  try {
-    const projectRef = doc(db, 'projects', projectId);
-    const totalCost = materialCost + laborCost;
+export async function saveQuoteData(
+  projectId: string,
+  materialCost: number,
+  laborCost: number,
+) {
+  const projectReference = doc(db, 'projects', projectId);
+  const totalCost = materialCost + laborCost;
 
-    await updateDoc(projectRef, {
-      status: 'Árajánlat kész',
-      quoteData: {
-        materialCost,
-        laborCost,
-        totalCost,
-        generatedAt: serverTimestamp()
-      },
-      updatedAt: serverTimestamp()
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Hiba az árajánlat mentésekor:", error);
-    throw error;
-  }
+  await updateDoc(projectReference, {
+    status: 'Árajánlat kész',
+    quoteData: {
+      materialCost,
+      laborCost,
+      totalCost,
+      generatedAt: serverTimestamp(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+
+  return { success: true };
 }
 
-import { getFunctions, httpsCallable } from 'firebase/functions';
-// ... a meglévő importok és függvények maradnak ...
-
-// Háttérben futó PDF generáló és e-mail küldő Cloud Function meghívása
 export async function triggerQuoteEmail(projectId: string) {
-  try {
-    const functionsInstance = getFunctions(undefined, 'europe-west1'); // Európai régió kényszerítése
-    const sendQuoteCallable = httpsCallable<{ projectId: string }, { success: boolean }>(
-      functionsInstance, 
-      'sendQuoteWithBuffer'
-    );
-    
-    const result = await sendQuoteCallable({ projectId });
-    return result.data;
-  } catch (error) {
-    console.error("Hiba a Cloud Function meghívásakor:", error);
-    throw error;
-  }
+  const functionsInstance = getFunctions(undefined, 'europe-west1');
+  const sendQuoteCallable = httpsCallable<
+    { projectId: string },
+    { success: boolean }
+  >(functionsInstance, 'sendQuoteWithBuffer');
+
+  const result = await sendQuoteCallable({ projectId });
+  return result.data;
 }
