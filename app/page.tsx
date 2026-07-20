@@ -47,6 +47,11 @@ function isoDate(year: number, month: number, day: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
+function todayIso() {
+  const now = new Date();
+  return isoDate(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
 function getCalendarDays(month: Date) {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
@@ -84,6 +89,12 @@ function getCalendarDays(month: Date) {
   return days;
 }
 
+type CalendarDraft = {
+  date: string;
+  projectId: string;
+  moduleKey: ModuleKey;
+};
+
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -92,6 +103,7 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'projects' | 'calendar'>('projects');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [calendarDraft, setCalendarDraft] = useState<CalendarDraft | null>(null);
   const [form, setForm] = useState({ title: '', clientName: '', address: '', phone: '' });
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
@@ -152,6 +164,48 @@ export default function Dashboard() {
     setSelectedModule(key);
   }
 
+  function openCalendarDraft(date: string) {
+    const firstProject = projects.find((project) => !project.closed);
+    const firstModule = firstProject
+      ? moduleKeys.find((key) => firstProject.modules[key].enabled) ?? 'survey'
+      : 'survey';
+
+    setCalendarDraft({
+      date,
+      projectId: firstProject?.id ?? '',
+      moduleKey: firstModule,
+    });
+  }
+
+  function changeCalendarDraftProject(projectId: string) {
+    const project = projects.find((item) => item.id === projectId);
+    const moduleKey = project
+      ? moduleKeys.find((key) => project.modules[key].enabled) ?? 'survey'
+      : 'survey';
+
+    setCalendarDraft((current) => current ? { ...current, projectId, moduleKey } : null);
+  }
+
+  async function saveCalendarDraft(event: React.FormEvent) {
+    event.preventDefault();
+    if (!calendarDraft?.projectId || !calendarDraft.date) return;
+
+    const project = projects.find((item) => item.id === calendarDraft.projectId);
+    if (!project || !project.modules[calendarDraft.moduleKey].enabled) return;
+
+    setSaving(true);
+    try {
+      await updateProjectModuleDate(
+        calendarDraft.projectId,
+        calendarDraft.moduleKey,
+        calendarDraft.date,
+      );
+      setCalendarDraft(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function moveMonth(offset: number) {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   }
@@ -160,6 +214,10 @@ export default function Dashboard() {
     year: 'numeric',
     month: 'long',
   });
+
+  const calendarDraftProject = calendarDraft
+    ? projects.find((project) => project.id === calendarDraft.projectId) ?? null
+    : null;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -266,9 +324,16 @@ export default function Dashboard() {
             <div className="flex flex-col gap-4 border-b border-slate-800 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold capitalize">{monthTitle}</h2>
-                <p className="mt-1 text-sm text-slate-500">Felmérések, kivitelezések és minden ütemezett projektfeladat egy helyen.</p>
+                <p className="mt-1 text-sm text-slate-500">Kattints egy napra, és adj hozzá projektfolyamatot.</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => openCalendarDraft(todayIso())}
+                  disabled={projects.length === 0}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  + Folyamat hozzáadása
+                </button>
                 <button onClick={() => moveMonth(-1)} className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">←</button>
                 <button onClick={() => setCalendarMonth(new Date())} className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800">Ma</button>
                 <button onClick={() => moveMonth(1)} className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">→</button>
@@ -284,17 +349,34 @@ export default function Dashboard() {
             <div className="grid grid-cols-7">
               {calendarDays.map((day) => {
                 const events = calendarEvents.filter((event) => event.date === day.date);
-                const isToday = day.date === isoDate(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
+                const isToday = day.date === todayIso();
                 return (
-                  <div key={day.date} className={`min-h-32 border-b border-r border-slate-800 p-2 ${day.currentMonth ? 'bg-slate-900' : 'bg-slate-950/50 text-slate-600'}`}>
-                    <div className={`mb-2 grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ${isToday ? 'bg-sky-600 text-white' : ''}`}>
-                      {day.day}
+                  <div
+                    key={day.date}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => projects.length > 0 && openCalendarDraft(day.date)}
+                    onKeyDown={(event) => {
+                      if ((event.key === 'Enter' || event.key === ' ') && projects.length > 0) {
+                        openCalendarDraft(day.date);
+                      }
+                    }}
+                    className={`group min-h-32 cursor-pointer border-b border-r border-slate-800 p-2 transition hover:bg-slate-800/70 ${day.currentMonth ? 'bg-slate-900' : 'bg-slate-950/50 text-slate-600'}`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className={`grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ${isToday ? 'bg-sky-600 text-white' : ''}`}>
+                        {day.day}
+                      </div>
+                      <span className="text-sm text-slate-600 opacity-0 transition group-hover:opacity-100">＋</span>
                     </div>
                     <div className="space-y-1.5">
                       {events.slice(0, 3).map((event) => (
                         <button
                           key={`${event.project.id}-${event.moduleKey}`}
-                          onClick={() => openModule(event.project, event.moduleKey)}
+                          onClick={(clickEvent) => {
+                            clickEvent.stopPropagation();
+                            openModule(event.project, event.moduleKey);
+                          }}
                           className="block w-full rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-1.5 text-left text-[11px] text-sky-200 hover:bg-sky-500/20"
                         >
                           <span className="block truncate font-bold">{moduleLabels[event.moduleKey]}</span>
@@ -310,6 +392,78 @@ export default function Dashboard() {
           </section>
         )}
       </div>
+
+      {calendarDraft && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={() => setCalendarDraft(null)}>
+          <form
+            onSubmit={saveCalendarDraft}
+            onClick={(event) => event.stopPropagation()}
+            className="w-full max-w-lg space-y-5 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-400">Naptár</p>
+                <h2 className="mt-2 text-xl font-bold">Projektfolyamat hozzáadása</h2>
+                <p className="mt-1 text-sm text-slate-500">Válaszd ki a projektet és a hozzá tartozó szakaszt.</p>
+              </div>
+              <button type="button" onClick={() => setCalendarDraft(null)} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400">✕</button>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-400">Dátum</label>
+              <input
+                type="date"
+                required
+                value={calendarDraft.date}
+                onChange={(event) => setCalendarDraft({ ...calendarDraft, date: event.target.value })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-400">Projekt</label>
+              <select
+                required
+                value={calendarDraft.projectId}
+                onChange={(event) => changeCalendarDraftProject(event.target.value)}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"
+              >
+                <option value="" disabled>Válassz projektet</option>
+                {projects.filter((project) => !project.closed).map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.code} · {project.title} · {project.client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-400">Projektfolyamat</label>
+              <select
+                required
+                value={calendarDraft.moduleKey}
+                onChange={(event) => setCalendarDraft({ ...calendarDraft, moduleKey: event.target.value as ModuleKey })}
+                className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"
+              >
+                {moduleKeys
+                  .filter((key) => calendarDraftProject?.modules[key].enabled)
+                  .map((key) => (
+                    <option key={key} value={key}>
+                      {moduleLabels[key]} · {calendarDraftProject?.modules[key].status}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <button
+              disabled={saving || !calendarDraft.projectId}
+              className="w-full rounded-lg bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? 'Mentés…' : 'Folyamat hozzáadása a naptárhoz'}
+            </button>
+          </form>
+        </div>
+      )}
 
       {selectedProject && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={() => setSelectedProject(null)}>
