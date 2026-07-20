@@ -15,6 +15,7 @@ export type ModuleKey = 'survey' | 'quote' | 'contract' | 'construction' | 'fina
 export type ProjectModule = {
   enabled: boolean;
   status: string;
+  scheduledAt?: string | null;
   completedAt?: unknown;
   delayed?: boolean;
 };
@@ -88,11 +89,11 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       address: '',
     },
     modules: {
-      survey: modules.survey ?? { enabled: true, status: 'Folyamatban' },
-      quote: modules.quote ?? { enabled: true, status: 'Intézendő' },
-      contract: modules.contract ?? { enabled: true, status: 'Intézendő' },
-      construction: modules.construction ?? { enabled: true, status: 'Intézendő' },
-      finance: modules.finance ?? { enabled: true, status: 'Intézendő' },
+      survey: modules.survey ?? { enabled: true, status: 'Folyamatban', scheduledAt: null },
+      quote: modules.quote ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
+      contract: modules.contract ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
+      construction: modules.construction ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
+      finance: modules.finance ?? { enabled: true, status: 'Intézendő', scheduledAt: null },
     },
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
@@ -154,11 +155,11 @@ export async function createNewInquiry(
       email: '',
     },
     modules: {
-      survey: { enabled: true, status: 'Folyamatban' },
-      quote: { enabled: true, status: 'Intézendő' },
-      contract: { enabled: true, status: 'Intézendő' },
-      construction: { enabled: true, status: 'Intézendő' },
-      finance: { enabled: true, status: 'Intézendő' },
+      survey: { enabled: true, status: 'Folyamatban', scheduledAt: null },
+      quote: { enabled: true, status: 'Intézendő', scheduledAt: null },
+      contract: { enabled: true, status: 'Intézendő', scheduledAt: null },
+      construction: { enabled: true, status: 'Intézendő', scheduledAt: null },
+      finance: { enabled: true, status: 'Intézendő', scheduledAt: null },
     },
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -185,6 +186,23 @@ export async function updateProjectModuleStatus(
       : null,
     status: delayedStatuses.includes(status) ? 'Csúszás' : 'Folyamatban',
     lastAction: `${moduleKey}: ${status}`,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function updateProjectModuleDate(
+  projectId: string,
+  moduleKey: ModuleKey,
+  scheduledAt: string | null,
+) {
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
+
+  await updateDoc(projectReference, {
+    [`modules.${moduleKey}.scheduledAt`]: scheduledAt,
+    lastAction: scheduledAt
+      ? `${moduleKey} időpont: ${scheduledAt}`
+      : `${moduleKey} időpont törölve`,
     updatedAt: serverTimestamp(),
   });
 }
