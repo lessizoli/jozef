@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    function isMemberOf(companyId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/companies/$(companyId)/members/$(uid()));
+    }
+    function isAdminOf(companyId) {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/companies/$(companyId)/members/$(uid())) &&
+        get(/databases/$(database)/documents/companies/$(companyId)/members/$(uid())).data.role == 'admin';
+    }
+
+    match /users/{userId} {
+      allow read:  if isSignedIn();
+      allow write: if isSignedIn() && uid() == userId;
+    }
+
+    match /companies/{companyId} {
+      allow read:   if isMemberOf(companyId);
+      allow create: if isSignedIn();
+      allow update: if isAdminOf(companyId);
+      allow delete: if isAdminOf(companyId);
+
+      match /members/{memberId} {
+        allow read:   if isMemberOf(companyId);
+        allow create: if isSignedIn() && uid() == memberId;
+        allow update: if isAdminOf(companyId);
+        allow delete: if isAdminOf(companyId) || uid() == memberId;
+      }
+
+      match /settings/{settingId} {
+        allow read:   if isMemberOf(companyId);
+        allow create: if isSignedIn();
+        allow update: if isAdminOf(companyId);
+        allow delete: if isAdminOf(companyId);
+      }
+
+      match /invites/{inviteId} {
+        allow read:  if isMemberOf(companyId) ||
+          (isSignedIn() && resource.data.email == request.auth.token.email);
+        allow create: if isAdminOf(companyId);
+        allow update: if isAdminOf(companyId) ||
+          (isSignedIn() && resource.data.email == request.auth.token.email);
+        allow delete: if isAdminOf(companyId);
+      }
+
+      match /projects/{projectId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /events/{eventId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /surveys/{surveyId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /constructions/{constructionId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /quotes/{quoteId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /files/{fileId} {
+        allow read, write: if isMemberOf(companyId);
+      }
+
+      match /activityLog/{logId} {
+        allow read:  if isMemberOf(companyId);
+        allow write: if false;
+      }
+    }
+  }
+}
