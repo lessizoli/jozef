@@ -40,7 +40,8 @@
 }
 
 .auth-card button,
-.secondary-button {
+.secondary-button,
+.primary-link {
   border: 0;
   border-radius: 12px;
   padding: 13px 18px;
@@ -58,6 +59,14 @@
 .auth-card button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.primary-link {
+  display: inline-block;
+  margin-top: 24px;
+  color: #fff;
+  background: var(--accent-dark);
+  text-decoration: none;
 }
 
 .form-error {
