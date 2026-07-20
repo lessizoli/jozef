@@ -59,12 +59,20 @@ const moduleLabels: Record<ModuleKey, string> = {
 const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
 const delayedStatuses = ['Csúszás', 'Késedelem'];
 
+const completedStatusByModule: Record<ModuleKey, string> = {
+  survey: 'Kész',
+  quote: 'Elfogadva',
+  contract: 'Aláírva',
+  construction: 'Befejezve',
+  finance: 'Fizetve',
+};
+
 const startingStatuses: Record<ModuleKey, string> = {
   survey: 'Folyamatban',
-  quote: 'Intézendő',
-  contract: 'Intézendő',
+  quote: 'Kiküldve',
+  contract: 'Kiküldve',
   construction: 'Folyamatban',
-  finance: 'Intézendő',
+  finance: 'Számlázva',
 };
 
 async function getAuthenticatedProfile(): Promise<UserProfile> {
@@ -215,27 +223,49 @@ export async function updateProjectModuleStatus(
 
   const completed = completedStatuses.includes(status);
   const delayed = delayedStatuses.includes(status);
+  const selectedIndex = moduleOrder.indexOf(moduleKey);
   const updates: Record<string, unknown> = {
     [`modules.${moduleKey}.status`]: status,
     [`modules.${moduleKey}.delayed`]: delayed,
     [`modules.${moduleKey}.completedAt`]: completed ? serverTimestamp() : null,
     status: delayed ? 'Csúszás' : 'Folyamatban',
+    closed: false,
     lastAction: `${moduleLabels[moduleKey]}: ${status}`,
     updatedAt: serverTimestamp(),
   };
 
+  // Kézi előrelépés: az előző, elérhető modulokat készre állítjuk.
+  if (status !== 'Intézendő') {
+    moduleOrder.slice(0, selectedIndex).forEach((key) => {
+      if (!project.modules[key].enabled) return;
+      updates[`modules.${key}.status`] = completedStatusByModule[key];
+      updates[`modules.${key}.delayed`] = false;
+      updates[`modules.${key}.completedAt`] = serverTimestamp();
+    });
+  }
+
+  // Kézi visszalépés: ha egy korábbi szakasz újra aktív, az utána lévők visszaállnak.
+  if (!completed) {
+    moduleOrder.slice(selectedIndex + 1).forEach((key) => {
+      if (!project.modules[key].enabled) return;
+      updates[`modules.${key}.status`] = 'Intézendő';
+      updates[`modules.${key}.delayed`] = false;
+      updates[`modules.${key}.completedAt`] = null;
+    });
+    updates.lastAction = `Projekt visszaállítva: ${moduleLabels[moduleKey]} – ${status}`;
+  }
+
+  // Normál automatikus továbbhaladás befejezett szakasznál.
   if (completed) {
-    const currentIndex = moduleOrder.indexOf(moduleKey);
     const nextModuleKey = moduleOrder
-      .slice(currentIndex + 1)
+      .slice(selectedIndex + 1)
       .find((key) => project.modules[key].enabled);
 
     if (nextModuleKey) {
-      const nextStatus = project.modules[nextModuleKey].status;
-      if (nextStatus === 'Intézendő') {
-        updates[`modules.${nextModuleKey}.status`] = startingStatuses[nextModuleKey];
-        updates.lastAction = `${moduleLabels[moduleKey]} elkészült, ${moduleLabels[nextModuleKey]} elindítva`;
-      }
+      updates[`modules.${nextModuleKey}.status`] = startingStatuses[nextModuleKey];
+      updates[`modules.${nextModuleKey}.delayed`] = false;
+      updates[`modules.${nextModuleKey}.completedAt`] = null;
+      updates.lastAction = `${moduleLabels[moduleKey]} elkészült, ${moduleLabels[nextModuleKey]} elindítva`;
     } else {
       updates.status = 'Lezárható';
       updates.lastAction = `${moduleLabels[moduleKey]} elkészült, a projekt lezárható`;
