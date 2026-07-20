@@ -27,6 +27,8 @@ export interface Project {
   title: string;
   status: string;
   lastAction?: string;
+  closed?: boolean;
+  teamId?: string | null;
   client: {
     name: string;
     email: string;
@@ -42,6 +44,27 @@ type UserProfile = {
   companyId?: string | null;
   role?: string;
   active?: boolean;
+};
+
+const moduleOrder: ModuleKey[] = ['survey', 'quote', 'contract', 'construction', 'finance'];
+
+const moduleLabels: Record<ModuleKey, string> = {
+  survey: 'Felmérés',
+  quote: 'Ajánlat',
+  contract: 'Szerződés',
+  construction: 'Kivitelezés',
+  finance: 'Pénzügy',
+};
+
+const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
+const delayedStatuses = ['Csúszás', 'Késedelem'];
+
+const startingStatuses: Record<ModuleKey, string> = {
+  survey: 'Folyamatban',
+  quote: 'Intézendő',
+  contract: 'Intézendő',
+  construction: 'Folyamatban',
+  finance: 'Intézendő',
 };
 
 async function getAuthenticatedProfile(): Promise<UserProfile> {
@@ -82,6 +105,8 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     title: typeof data.title === 'string' ? data.title : 'Névtelen projekt',
     status: typeof data.status === 'string' ? data.status : 'Folyamatban',
     lastAction: typeof data.lastAction === 'string' ? data.lastAction : 'Projekt létrehozva',
+    closed: data.closed === true,
+    teamId: typeof data.teamId === 'string' ? data.teamId : null,
     client: (data.client as Project['client']) ?? {
       name: '',
       email: '',
@@ -148,6 +173,8 @@ export async function createNewInquiry(
     title,
     status: 'Folyamatban',
     lastAction: 'Felmérés elindítva',
+    closed: false,
+    teamId: null,
     client: {
       name: clientName,
       address: clientAddress,
@@ -175,19 +202,47 @@ export async function updateProjectModuleStatus(
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const projectReference = companyProjectDocument(companyId, projectId);
-  const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
-  const delayedStatuses = ['Csúszás', 'Késedelem'];
+  const projectSnapshot = await getDoc(projectReference);
 
-  await updateDoc(projectReference, {
+  if (!projectSnapshot.exists()) {
+    throw new Error('A projekt nem található.');
+  }
+
+  const project = normalizeProject(projectId, companyId, projectSnapshot.data());
+  if (!project.modules[moduleKey].enabled) {
+    throw new Error('Ez a modul ennél a projektnél nem elérhető.');
+  }
+
+  const completed = completedStatuses.includes(status);
+  const delayed = delayedStatuses.includes(status);
+  const updates: Record<string, unknown> = {
     [`modules.${moduleKey}.status`]: status,
-    [`modules.${moduleKey}.delayed`]: delayedStatuses.includes(status),
-    [`modules.${moduleKey}.completedAt`]: completedStatuses.includes(status)
-      ? serverTimestamp()
-      : null,
-    status: delayedStatuses.includes(status) ? 'Csúszás' : 'Folyamatban',
-    lastAction: `${moduleKey}: ${status}`,
+    [`modules.${moduleKey}.delayed`]: delayed,
+    [`modules.${moduleKey}.completedAt`]: completed ? serverTimestamp() : null,
+    status: delayed ? 'Csúszás' : 'Folyamatban',
+    lastAction: `${moduleLabels[moduleKey]}: ${status}`,
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  if (completed) {
+    const currentIndex = moduleOrder.indexOf(moduleKey);
+    const nextModuleKey = moduleOrder
+      .slice(currentIndex + 1)
+      .find((key) => project.modules[key].enabled);
+
+    if (nextModuleKey) {
+      const nextStatus = project.modules[nextModuleKey].status;
+      if (nextStatus === 'Intézendő') {
+        updates[`modules.${nextModuleKey}.status`] = startingStatuses[nextModuleKey];
+        updates.lastAction = `${moduleLabels[moduleKey]} elkészült, ${moduleLabels[nextModuleKey]} elindítva`;
+      }
+    } else {
+      updates.status = 'Lezárható';
+      updates.lastAction = `${moduleLabels[moduleKey]} elkészült, a projekt lezárható`;
+    }
+  }
+
+  await updateDoc(projectReference, updates);
 }
 
 export async function updateProjectModuleDate(
@@ -201,8 +256,28 @@ export async function updateProjectModuleDate(
   await updateDoc(projectReference, {
     [`modules.${moduleKey}.scheduledAt`]: scheduledAt,
     lastAction: scheduledAt
-      ? `${moduleKey} időpont: ${scheduledAt}`
-      : `${moduleKey} időpont törölve`,
+      ? `${moduleLabels[moduleKey]} időpont: ${scheduledAt}`
+      : `${moduleLabels[moduleKey]} időpont törölve`,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function assignProjectTeam(projectId: string, teamId: string | null) {
+  const companyId = await getAuthenticatedCompanyId();
+  await updateDoc(companyProjectDocument(companyId, projectId), {
+    teamId,
+    lastAction: teamId ? 'Kivitelező csapat hozzárendelve' : 'Csapat-hozzárendelés törölve',
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function closeProject(projectId: string) {
+  const companyId = await getAuthenticatedCompanyId();
+  await updateDoc(companyProjectDocument(companyId, projectId), {
+    closed: true,
+    status: 'Lezárt',
+    lastAction: 'Projekt lezárva',
+    closedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 }
