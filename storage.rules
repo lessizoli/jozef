@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profile() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function belongsTo(companyId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && profile().active == true
+        && (
+          profile().role == 'superadmin'
+          || profile().companyId == companyId
+        );
+    }
+
+    match /companies/{companyId}/projects/{projectId}/images/{fileName} {
+      allow read: if belongsTo(companyId);
+
+      allow create: if belongsTo(companyId)
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow update: if false;
+      allow delete: if belongsTo(companyId);
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
