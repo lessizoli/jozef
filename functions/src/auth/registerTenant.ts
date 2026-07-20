@@ -32,7 +32,7 @@ export const registerTenant = onCall(async (request) => {
     // 4. Custom Claims (szerepkör) ráégetése a felhasználó tokenjére
     await getAuth().setCustomUserClaims(userRecord.uid, {
       companyId: companyId,
-      role: 'admin', // Az első regisztráló mindig a cégtulajdonos/admin
+      role: 'company_admin',
     });
 
     // 5. Felhasználói profil elmentése a Firestore-ba
@@ -41,7 +41,8 @@ export const registerTenant = onCall(async (request) => {
       email,
       fullName,
       companyId,
-      role: 'admin',
+      role: 'company_admin',
+      active: true,
       createdAt: new Date(),
     });
 
