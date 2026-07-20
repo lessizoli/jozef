@@ -14,7 +14,7 @@ service cloud.firestore {
     function activeUser() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && profile().active == true;
+        && profile().active != false;
     }
 
     function superAdmin() {
@@ -28,7 +28,7 @@ service cloud.firestore {
 
     function companyAdmin(companyId) {
       return belongsTo(companyId)
-        && (superAdmin() || profile().role == 'company_admin');
+        && (superAdmin() || profile().role in ['company_admin', 'admin']);
     }
 
     match /users/{userId} {
