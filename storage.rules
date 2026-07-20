@@ -14,7 +14,7 @@ service firebase.storage {
     function belongsTo(companyId) {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
-        && profile().active == true
+        && profile().active != false
         && (
           profile().role == 'superadmin'
           || profile().companyId == companyId
