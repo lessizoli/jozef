@@ -31,12 +31,10 @@ service cloud.firestore {
         && (superAdmin() || profile().role == 'company_admin');
     }
 
-    // A felhasználó a saját profilját olvashatja.
     match /users/{userId} {
       allow read: if activeUser()
         && (superAdmin() || request.auth.uid == userId);
 
-      // Saját alapadatok módosíthatók, jogosultsági mezők nem.
       allow update: if activeUser()
         && request.auth.uid == userId
         && request.resource.data.companyId == resource.data.companyId
@@ -46,12 +44,10 @@ service cloud.firestore {
       allow create, delete: if superAdmin();
     }
 
-    // Cég alapadatai.
     match /companies/{companyId} {
       allow read: if belongsTo(companyId);
       allow create, update, delete: if companyAdmin(companyId);
 
-      // A CRM működéséhez használt céges modulok.
       match /{module}/{documentId} {
         allow read, create, update, delete: if belongsTo(companyId)
           && module in [
@@ -67,7 +63,17 @@ service cloud.firestore {
           ];
       }
 
-      // Jogosultsági és céges beállítások csak adminnak.
+      match /projects/{projectId}/attachments/{attachmentId} {
+        allow read: if belongsTo(companyId);
+
+        allow create: if belongsTo(companyId)
+          && request.resource.data.type in ['note', 'image', 'video', 'audio']
+          && request.resource.data.createdBy == request.auth.uid;
+
+        allow update: if false;
+        allow delete: if belongsTo(companyId);
+      }
+
       match /{adminSection}/{documentId} {
         allow read: if belongsTo(companyId)
           && adminSection in ['members', 'settings', 'invites'];
@@ -76,7 +82,6 @@ service cloud.firestore {
           && adminSection in ['members', 'settings', 'invites'];
       }
 
-      // Napló csak olvasható, kliensből nem írható.
       match /activityLog/{logId} {
         allow read: if belongsTo(companyId);
         allow write: if false;
