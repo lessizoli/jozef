@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth } from '../lib/firebase';
 
@@ -42,5 +42,18 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   if (!user && pathname !== '/login') return null;
   if (user && pathname === '/login') return null;
 
-  return children;
+  return (
+    <>
+      {user && pathname !== '/login' && (
+        <button
+          type="button"
+          onClick={() => void signOut(auth)}
+          className="fixed right-4 top-4 z-[100] rounded-lg border border-slate-700 bg-slate-900/90 px-3 py-2 text-xs font-semibold text-slate-200 shadow-lg backdrop-blur transition hover:border-rose-500 hover:text-rose-300"
+        >
+          Kilépés
+        </button>
+      )}
+      {children}
+    </>
+  );
 }
