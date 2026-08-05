@@ -42,6 +42,14 @@ export interface Project {
   updatedAt: unknown;
 }
 
+export type ProjectDetailsUpdate = {
+  title: string;
+  clientName: string;
+  email: string;
+  phone: string;
+  address: string;
+};
+
 type UserProfile = {
   companyId?: string | null;
   role?: string;
@@ -332,9 +340,38 @@ export async function assignProjectTeam(projectId: string, teamId: string | null
   });
 }
 
+export async function updateProjectDetails(projectId: string, details: ProjectDetailsUpdate) {
+  const companyId = await getAuthenticatedCompanyId();
+  const projectReference = companyProjectDocument(companyId, projectId);
+  const projectSnapshot = await getDoc(projectReference);
+
+  if (!projectSnapshot.exists()) throw new Error('A projekt nem található.');
+  if (projectSnapshot.data().closed === true) throw new Error('Lezárt projekt adatai nem módosíthatók.');
+
+  const title = details.title.trim();
+  const clientName = details.clientName.trim();
+  if (!title || !clientName) throw new Error('A projekt megnevezése és az ügyfél neve kötelező.');
+
+  await updateDoc(projectReference, {
+    title,
+    'client.name': clientName,
+    'client.email': details.email.trim(),
+    'client.phone': details.phone.trim(),
+    'client.address': details.address.trim(),
+    lastAction: 'Projektadatok módosítva',
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function closeProject(projectId: string) {
   const companyId = await getAuthenticatedCompanyId();
-  await updateDoc(companyProjectDocument(companyId, projectId), {
+  const projectReference = companyProjectDocument(companyId, projectId);
+  const projectSnapshot = await getDoc(projectReference);
+
+  if (!projectSnapshot.exists()) throw new Error('A projekt nem található.');
+  if (projectSnapshot.data().closed === true) return;
+
+  await updateDoc(projectReference, {
     closed: true,
     status: 'Lezárt',
     lastAction: 'Projekt lezárva',

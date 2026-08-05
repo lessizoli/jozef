@@ -2,206 +2,194 @@
 
 import { signOut } from 'firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
-import { auth } from '../lib/firebase';
+import CalendarDialog from '@/components/dashboard/CalendarDialog';
+import CalendarView from '@/components/dashboard/CalendarView';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import DashboardStats from '@/components/dashboard/DashboardStats';
+import InquiryDrawer from '@/components/dashboard/InquiryDrawer';
+import ProjectDrawer, { type ProjectDrawerMode } from '@/components/dashboard/ProjectDrawer';
+import ProjectList from '@/components/dashboard/ProjectList';
+import { getCalendarDays, moduleKeys } from '@/components/dashboard/dashboardConfig';
+import type {
+  CalendarDraft,
+  CalendarEvent,
+  DashboardView,
+  InquiryForm,
+  ProjectDetailsDraft,
+  ScheduleDraft,
+} from '@/components/dashboard/types';
+import { auth } from '@/lib/firebase';
 import {
+  closeProject,
   createNewInquiry,
   type ModuleKey,
   type Project,
   subscribeToCompanyProjects,
+  updateProjectDetails,
   updateProjectModuleSchedule,
   updateProjectModuleStatus,
-} from '../lib/projectService';
+} from '@/lib/projectService';
 
-const moduleLabels: Record<ModuleKey, string> = {
-  survey: 'Felmérés',
-  quote: 'Ajánlat',
-  contract: 'Szerződés',
-  construction: 'Kivitelezés',
-  finance: 'Pénzügy',
-};
+const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '' };
+const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '' };
+const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
 
-const moduleStatuses: Record<ModuleKey, string[]> = {
-  survey: ['Folyamatban', 'Kész', 'Csúszás'],
-  quote: ['Intézendő', 'Kiküldve', 'Elutasítva', 'Elfogadva', 'Csúszás'],
-  contract: ['Intézendő', 'Kiküldve', 'Aláírva', 'Csúszás'],
-  construction: ['Intézendő', 'Folyamatban', 'Befejezve', 'Csúszás'],
-  finance: ['Intézendő', 'Számlázva', 'Fizetve', 'Késedelem'],
-};
+type DrawerIntent = ProjectDrawerMode | 'close';
 
-const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
-const delayedStatuses = ['Csúszás', 'Késedelem'];
-const activeStatuses = ['Folyamatban', 'Kiküldve', 'Számlázva'];
-const moduleKeys = Object.keys(moduleLabels) as ModuleKey[];
-const weekdayLabels = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
-
-function moduleClass(project: Project, key: ModuleKey) {
-  const module = project.modules[key];
-  if (!module.enabled) return 'border-slate-700 bg-slate-900 text-slate-600 cursor-not-allowed';
-  if (completedStatuses.includes(module.status)) return 'border-emerald-500 bg-emerald-500/20 text-emerald-200';
-  if (delayedStatuses.includes(module.status)) return 'border-rose-500 bg-rose-500/20 text-rose-200';
-  if (activeStatuses.includes(module.status)) return 'border-amber-500 bg-amber-500/20 text-amber-100';
-  return 'border-slate-600 bg-slate-800 text-slate-300';
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'A művelet nem sikerült.';
 }
-
-function isoDate(year: number, month: number, day: number) {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-
-function todayIso() {
-  const now = new Date();
-  return isoDate(now.getFullYear(), now.getMonth(), now.getDate());
-}
-
-function getCalendarDays(month: Date) {
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth();
-  const firstDay = new Date(year, monthIndex, 1);
-  const lastDay = new Date(year, monthIndex + 1, 0);
-  const mondayOffset = (firstDay.getDay() + 6) % 7;
-  const days: Array<{ date: string; day: number; currentMonth: boolean }> = [];
-
-  const previousMonthLastDay = new Date(year, monthIndex, 0).getDate();
-  for (let index = mondayOffset - 1; index >= 0; index -= 1) {
-    const day = previousMonthLastDay - index;
-    const previous = new Date(year, monthIndex - 1, day);
-    days.push({
-      date: isoDate(previous.getFullYear(), previous.getMonth(), previous.getDate()),
-      day,
-      currentMonth: false,
-    });
-  }
-
-  for (let day = 1; day <= lastDay.getDate(); day += 1) {
-    days.push({ date: isoDate(year, monthIndex, day), day, currentMonth: true });
-  }
-
-  let nextDay = 1;
-  while (days.length < 42) {
-    const next = new Date(year, monthIndex + 1, nextDay);
-    days.push({
-      date: isoDate(next.getFullYear(), next.getMonth(), next.getDate()),
-      day: nextDay,
-      currentMonth: false,
-    });
-    nextDay += 1;
-  }
-
-  return days;
-}
-
-type CalendarDraft = {
-  date: string;
-  time: string;
-  projectId: string;
-  moduleKey: ModuleKey;
-  assignedTo: string;
-};
-
-type ScheduleDraft = {
-  date: string;
-  time: string;
-  assignedTo: string;
-};
 
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('survey');
-  const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft>({ date: '', time: '', assignedTo: '' });
+  const [drawerIntent, setDrawerIntent] = useState<DrawerIntent>('module');
+  const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft>(emptySchedule);
+  const [detailsDraft, setDetailsDraft] = useState<ProjectDetailsDraft>(emptyDetails);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState<'projects' | 'calendar'>('projects');
+  const [actionError, setActionError] = useState('');
+  const [view, setView] = useState<DashboardView>('projects');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [calendarDraft, setCalendarDraft] = useState<CalendarDraft | null>(null);
-  const [form, setForm] = useState({ title: '', clientName: '', address: '', phone: '' });
+  const [inquiryForm, setInquiryForm] = useState<InquiryForm>(emptyInquiry);
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
     setSelectedProject((current) => current ? items.find((item) => item.id === current.id) ?? null : null);
   }), []);
 
-  useEffect(() => {
-    if (!selectedProject) return;
-    const module = selectedProject.modules[selectedModule];
-    setScheduleDraft({
-      date: module.scheduledAt ?? '',
-      time: module.scheduledTime ?? '',
-      assignedTo: module.assignedTo ?? '',
-    });
-  }, [selectedProject, selectedModule]);
-
+  const activeProjects = useMemo(() => projects.filter((project) => !project.closed), [projects]);
   const delayedCount = useMemo(
-    () => projects.filter((project) => project.status === 'Csúszás').length,
-    [projects],
+    () => activeProjects.filter((project) => project.status === 'Csúszás').length,
+    [activeProjects],
   );
-
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
+  const calendarEvents = useMemo<CalendarEvent[]>(() => activeProjects
+    .flatMap((project) => moduleKeys.flatMap((moduleKey) => {
+      const projectModule = project.modules[moduleKey];
+      if (!projectModule.scheduledAt) return [];
+      return [{
+        project,
+        moduleKey,
+        date: projectModule.scheduledAt,
+        time: projectModule.scheduledTime ?? '',
+        assignedTo: projectModule.assignedTo ?? '',
+      }];
+    }))
+    .sort((a, b) => a.time.localeCompare(b.time)), [activeProjects]);
 
-  const calendarEvents = useMemo(() => {
-    return projects
-      .flatMap((project) => moduleKeys.flatMap((moduleKey) => {
-        const module = project.modules[moduleKey];
-        if (!module.scheduledAt) return [];
-        return [{
-          project,
-          moduleKey,
-          date: module.scheduledAt,
-          time: module.scheduledTime ?? '',
-          assignedTo: module.assignedTo ?? '',
-        }];
-      }))
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [projects]);
+  const monthTitle = calendarMonth.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
+  const calendarDraftProject = calendarDraft
+    ? projects.find((project) => project.id === calendarDraft.projectId) ?? null
+    : null;
 
-  async function createProject(event: React.FormEvent) {
-    event.preventDefault();
-    if (!form.title.trim() || !form.clientName.trim()) return;
+  async function runAction(action: () => Promise<void>) {
+    setActionError('');
     setSaving(true);
     try {
-      await createNewInquiry('', form.title, form.clientName, form.address, form.phone);
-      setForm({ title: '', clientName: '', address: '', phone: '' });
-      setShowCreate(false);
+      await action();
+    } catch (error) {
+      setActionError(errorMessage(error));
     } finally {
       setSaving(false);
     }
+  }
+
+  async function createProject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!inquiryForm.title.trim() || !inquiryForm.clientName.trim()) return;
+    await runAction(async () => {
+      await createNewInquiry('', inquiryForm.title, inquiryForm.clientName, inquiryForm.address, inquiryForm.phone);
+      setInquiryForm(emptyInquiry);
+      setShowCreate(false);
+    });
   }
 
   async function changeModuleStatus(status: string) {
     if (!selectedProject) return;
-    setSaving(true);
-    try {
-      await updateProjectModuleStatus(selectedProject.id, selectedModule, status);
-    } finally {
-      setSaving(false);
-    }
+    await runAction(() => updateProjectModuleStatus(selectedProject.id, selectedModule, status));
   }
 
-  async function saveSelectedSchedule(event: React.FormEvent) {
+  async function saveSelectedSchedule(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedProject) return;
-    setSaving(true);
-    try {
-      await updateProjectModuleSchedule(selectedProject.id, selectedModule, {
-        date: scheduleDraft.date || null,
-        time: scheduleDraft.time || null,
-        assignedTo: scheduleDraft.assignedTo.trim() || null,
-      });
-    } finally {
-      setSaving(false);
-    }
+    await runAction(() => updateProjectModuleSchedule(selectedProject.id, selectedModule, {
+      date: scheduleDraft.date || null,
+      time: scheduleDraft.time || null,
+      assignedTo: scheduleDraft.assignedTo.trim() || null,
+    }));
+  }
+
+  async function saveProjectDetails(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedProject) return;
+    await runAction(() => updateProjectDetails(selectedProject.id, detailsDraft));
+  }
+
+  async function confirmCloseProject() {
+    if (!selectedProject) return;
+    await runAction(async () => {
+      await closeProject(selectedProject.id);
+      setSelectedProject(null);
+    });
+  }
+
+  function loadScheduleDraft(project: Project, key: ModuleKey) {
+    const projectModule = project.modules[key];
+    setScheduleDraft({
+      date: projectModule.scheduledAt ?? '',
+      time: projectModule.scheduledTime ?? '',
+      assignedTo: projectModule.assignedTo ?? '',
+    });
+  }
+
+  function loadDetailsDraft(project: Project) {
+    setDetailsDraft({
+      title: project.title,
+      clientName: project.client.name,
+      email: project.client.email,
+      phone: project.client.phone,
+      address: project.client.address,
+    });
   }
 
   function openModule(project: Project, key: ModuleKey) {
-    setSelectedProject(project);
+    if (project.closed || !project.modules[key].enabled) return;
+    setActionError('');
+    setDrawerIntent('module');
     setSelectedModule(key);
+    loadScheduleDraft(project, key);
+    loadDetailsDraft(project);
+    setSelectedProject(project);
+  }
+
+  function openProjectDetails(project: Project) {
+    setActionError('');
+    setDrawerIntent('details');
+    loadDetailsDraft(project);
+    setSelectedProject(project);
+  }
+
+  function requestProjectClose(project: Project) {
+    setActionError('');
+    setDrawerIntent('close');
+    loadDetailsDraft(project);
+    setSelectedProject(project);
+  }
+
+  function changeSelectedModule(key: ModuleKey) {
+    if (!selectedProject) return;
+    setSelectedModule(key);
+    loadScheduleDraft(selectedProject, key);
   }
 
   function openCalendarDraft(date: string) {
-    const firstProject = projects.find((project) => !project.closed);
+    const firstProject = activeProjects[0];
     const firstModule = firstProject
       ? moduleKeys.find((key) => firstProject.modules[key].enabled) ?? 'survey'
       : 'survey';
-
     setCalendarDraft({
       date,
       time: '08:00',
@@ -216,183 +204,115 @@ export default function Dashboard() {
     const moduleKey = project
       ? moduleKeys.find((key) => project.modules[key].enabled) ?? 'survey'
       : 'survey';
-
     setCalendarDraft((current) => current ? { ...current, projectId, moduleKey } : null);
   }
 
-  async function saveCalendarDraft(event: React.FormEvent) {
+  async function saveCalendarDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!calendarDraft?.projectId || !calendarDraft.date || !calendarDraft.time) return;
-
     const project = projects.find((item) => item.id === calendarDraft.projectId);
-    if (!project || !project.modules[calendarDraft.moduleKey].enabled) return;
+    if (!project || project.closed || !project.modules[calendarDraft.moduleKey].enabled) return;
 
-    setSaving(true);
-    try {
+    await runAction(async () => {
       await updateProjectModuleSchedule(calendarDraft.projectId, calendarDraft.moduleKey, {
         date: calendarDraft.date,
         time: calendarDraft.time,
         assignedTo: calendarDraft.assignedTo.trim() || null,
       });
       setCalendarDraft(null);
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   function moveMonth(offset: number) {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
   }
 
-  const monthTitle = calendarMonth.toLocaleDateString('hu-HU', {
-    year: 'numeric',
-    month: 'long',
-  });
-
-  const calendarDraftProject = calendarDraft
-    ? projects.find((project) => project.id === calendarDraft.projectId) ?? null
-    : null;
-
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
-      <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-400">Envision CRM</p>
-            <h1 className="mt-1 text-xl font-bold">Projektkezelő</h1>
-          </div>
-          <nav className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setView('projects')} className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'projects' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}>Projektek</button>
-            <button onClick={() => setView('calendar')} className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'calendar' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}>Naptár</button>
-            <button onClick={() => setShowCreate(true)} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">+ Új érdeklődés</button>
-            <button onClick={() => signOut(auth)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Kilépés</button>
-          </nav>
-        </div>
-      </header>
+      <DashboardHeader
+        view={view}
+        onViewChange={setView}
+        onCreate={() => setShowCreate(true)}
+        onSignOut={() => void signOut(auth)}
+      />
 
       <div className="mx-auto max-w-7xl space-y-7 px-5 py-6">
-        <section className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Aktív projektek</p><p className="mt-2 text-3xl font-bold">{projects.length}</p></div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Csúszásban</p><p className="mt-2 text-3xl font-bold text-rose-400">{delayedCount}</p></div>
-          <div className="rounded-xl border border-slate-800 bg-slate-900 p-4"><p className="text-xs uppercase tracking-wider text-slate-500">Naptárbejegyzések</p><p className="mt-2 text-3xl font-bold text-sky-400">{calendarEvents.length}</p></div>
-        </section>
+        {actionError && (
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200" role="alert">
+            <span>{actionError}</span>
+            <button type="button" onClick={() => setActionError('')} aria-label="Hibaüzenet bezárása">✕</button>
+          </div>
+        )}
+        <DashboardStats
+          activeProjects={activeProjects.length}
+          delayedProjects={delayedCount}
+          calendarEvents={calendarEvents.length}
+        />
 
         {view === 'projects' ? (
-          <section className="space-y-4">
-            <div><h2 className="text-lg font-bold">Projektek</h2><p className="text-sm text-slate-500">Minden projekt teljes folyamata egy kártyán.</p></div>
-            {projects.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-10 text-center">
-                <p className="font-semibold text-slate-300">Még nincs projekt ebben a cégben.</p>
-                <button onClick={() => setShowCreate(true)} className="mt-5 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold hover:bg-sky-500">Első érdeklődés rögzítése</button>
-              </div>
-            ) : projects.map((project) => (
-              <article key={project.id} className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-lg">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{project.code}</span>
-                  <span className={project.status === 'Csúszás' ? 'text-xs font-semibold text-rose-400' : 'text-xs font-semibold text-amber-400'}>{project.lastAction ?? project.status}</span>
-                </div>
-                <h2 className="mt-3 text-lg font-bold">{project.title}</h2>
-                <p className="mt-1 text-sm text-slate-400">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  {moduleKeys.map((key, index) => {
-                    const module = project.modules[key];
-                    return (
-                      <button key={key} disabled={!module.enabled} onClick={() => openModule(project, key)} className={`min-h-28 rounded-xl border-2 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${moduleClass(project, key)}`}>
-                        <span className="block text-[11px] font-bold uppercase tracking-[0.16em] opacity-70">{index + 1}. szakasz</span>
-                        <span className="mt-2 block text-base font-bold">{moduleLabels[key]}</span>
-                        <span className="mt-2 block text-sm font-medium">{module.status}</span>
-                        {module.scheduledAt && <span className="mt-2 block text-xs opacity-80">{module.scheduledAt}{module.scheduledTime ? ` · ${module.scheduledTime}` : ''}</span>}
-                        {module.assignedTo && <span className="mt-1 block truncate text-xs opacity-80">{module.assignedTo}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
-          </section>
+          <ProjectList
+            projects={projects}
+            onCreate={() => setShowCreate(true)}
+            onOpenModule={openModule}
+            onEditProject={openProjectDetails}
+            onCloseProject={requestProjectClose}
+          />
         ) : (
-          <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 shadow-xl">
-            <div className="flex flex-col gap-4 border-b border-slate-800 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div><h2 className="text-xl font-bold capitalize">{monthTitle}</h2><p className="mt-1 text-sm text-slate-500">Azonos időpontra több külön projektfolyamat is felvehető.</p></div>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={() => openCalendarDraft(todayIso())} disabled={projects.length === 0} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-40">+ Folyamat hozzáadása</button>
-                <button onClick={() => moveMonth(-1)} className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">←</button>
-                <button onClick={() => setCalendarMonth(new Date())} className="rounded-lg border border-slate-700 px-4 py-2 text-sm hover:bg-slate-800">Ma</button>
-                <button onClick={() => moveMonth(1)} className="rounded-lg border border-slate-700 px-3 py-2 hover:bg-slate-800">→</button>
-              </div>
-            </div>
-            <div className="grid grid-cols-7 border-b border-slate-800 bg-slate-950/40">
-              {weekdayLabels.map((label) => <div key={label} className="p-3 text-center text-xs font-bold uppercase text-slate-500">{label}</div>)}
-            </div>
-            <div className="grid grid-cols-7">
-              {calendarDays.map((day) => {
-                const events = calendarEvents.filter((event) => event.date === day.date);
-                const isToday = day.date === todayIso();
-                return (
-                  <div key={day.date} role="button" tabIndex={0} onClick={() => projects.length > 0 && openCalendarDraft(day.date)} className={`group min-h-40 cursor-pointer border-b border-r border-slate-800 p-2 transition hover:bg-slate-800/70 ${day.currentMonth ? 'bg-slate-900' : 'bg-slate-950/50 text-slate-600'}`}>
-                    <div className="mb-2 flex items-center justify-between"><div className={`grid h-7 w-7 place-items-center rounded-full text-xs font-semibold ${isToday ? 'bg-sky-600 text-white' : ''}`}>{day.day}</div><span className="text-sm text-slate-600 opacity-0 group-hover:opacity-100">＋</span></div>
-                    <div className="space-y-1.5">
-                      {events.map((event) => (
-                        <button key={`${event.project.id}-${event.moduleKey}`} onClick={(clickEvent) => { clickEvent.stopPropagation(); openModule(event.project, event.moduleKey); }} className="block w-full rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-1.5 text-left text-[11px] text-sky-200 hover:bg-sky-500/20">
-                          <span className="block font-bold">{event.time || '--:--'} · {moduleLabels[event.moduleKey]}</span>
-                          <span className="block truncate">{event.project.code} · {event.project.client.address || event.project.title}</span>
-                          {event.assignedTo && <span className="block truncate opacity-80">{event.assignedTo}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
+          <CalendarView
+            monthTitle={monthTitle}
+            days={calendarDays}
+            events={calendarEvents}
+            hasActiveProject={activeProjects.length > 0}
+            onAdd={openCalendarDraft}
+            onMoveMonth={moveMonth}
+            onToday={() => setCalendarMonth(new Date())}
+            onOpenModule={openModule}
+          />
         )}
       </div>
 
       {calendarDraft && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" onClick={() => setCalendarDraft(null)}>
-          <form onSubmit={saveCalendarDraft} onClick={(event) => event.stopPropagation()} className="w-full max-w-lg space-y-5 rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-4"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-400">Naptár</p><h2 className="mt-2 text-xl font-bold">Projektfolyamat hozzáadása</h2></div><button type="button" onClick={() => setCalendarDraft(null)} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400">✕</button></div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Dátum</label><input type="date" required value={calendarDraft.date} onChange={(event) => setCalendarDraft({ ...calendarDraft, date: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-              <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Kezdési idő</label><input type="time" required value={calendarDraft.time} onChange={(event) => setCalendarDraft({ ...calendarDraft, time: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            </div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Projekt</label><select required value={calendarDraft.projectId} onChange={(event) => changeCalendarDraftProject(event.target.value)} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"><option value="" disabled>Válassz projektet</option>{projects.filter((project) => !project.closed).map((project) => <option key={project.id} value={project.id}>{project.code} · {project.title} · {project.client.address || project.client.name}</option>)}</select></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Projektfolyamat</label><select required value={calendarDraft.moduleKey} onChange={(event) => setCalendarDraft({ ...calendarDraft, moduleKey: event.target.value as ModuleKey })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500">{moduleKeys.filter((key) => calendarDraftProject?.modules[key].enabled).map((key) => <option key={key} value={key}>{moduleLabels[key]} · {calendarDraftProject?.modules[key].status}</option>)}</select></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Feladatot végző neve / csapat</label><input value={calendarDraft.assignedTo} onChange={(event) => setCalendarDraft({ ...calendarDraft, assignedTo: event.target.value })} placeholder="pl. Nagy Péter vagy 2-es kivitelező csapat" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            {calendarDraftProject && <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-400"><span className="font-semibold text-slate-200">Cím:</span> {calendarDraftProject.client.address || 'Nincs cím megadva'}</div>}
-            <button disabled={saving || !calendarDraft.projectId} className="w-full rounded-lg bg-sky-600 px-4 py-3 font-semibold hover:bg-sky-500 disabled:opacity-50">{saving ? 'Mentés…' : 'Folyamat hozzáadása a naptárhoz'}</button>
-          </form>
-        </div>
+        <CalendarDialog
+          draft={calendarDraft}
+          projects={projects}
+          selectedProject={calendarDraftProject}
+          saving={saving}
+          onChange={setCalendarDraft}
+          onProjectChange={changeCalendarDraftProject}
+          onClose={() => setCalendarDraft(null)}
+          onSubmit={saveCalendarDraft}
+        />
       )}
 
       {selectedProject && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={() => setSelectedProject(null)}>
-          <aside className="h-full w-full max-w-md overflow-y-auto border-l border-slate-700 bg-slate-900 p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between"><div><p className="text-xs text-slate-500">{selectedProject.code}</p><h2 className="mt-1 text-xl font-bold">{selectedProject.title}</h2><p className="mt-1 text-sm text-slate-400">{selectedProject.client.name}</p></div><button onClick={() => setSelectedProject(null)} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400">✕</button></div>
-            <div className="mt-6 grid grid-cols-2 gap-2">{moduleKeys.map((key) => <button key={key} disabled={!selectedProject.modules[key].enabled} onClick={() => setSelectedModule(key)} className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:opacity-40`}>{moduleLabels[key]}</button>)}</div>
-            <form onSubmit={saveSelectedSchedule} className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-500">Kiválasztott modul</p><h3 className="mt-1 text-lg font-bold">{moduleLabels[selectedModule]}</h3><p className="mt-2 text-sm text-slate-400">Jelenlegi státusz: <span className="font-semibold text-slate-200">{selectedProject.modules[selectedModule].status}</span></p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2"><div><label className="mb-1 block text-xs font-semibold text-slate-500">Dátum</label><input type="date" value={scheduleDraft.date} onChange={(event) => setScheduleDraft({ ...scheduleDraft, date: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" /></div><div><label className="mb-1 block text-xs font-semibold text-slate-500">Kezdési idő</label><input type="time" value={scheduleDraft.time} onChange={(event) => setScheduleDraft({ ...scheduleDraft, time: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" /></div></div>
-              <div className="mt-3"><label className="mb-1 block text-xs font-semibold text-slate-500">Feladatot végző neve / csapat</label><input value={scheduleDraft.assignedTo} onChange={(event) => setScheduleDraft({ ...scheduleDraft, assignedTo: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" /></div>
-              <button disabled={saving} className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">Időpont mentése</button>
-              <div className="mt-5 space-y-2">{moduleStatuses[selectedModule].map((status) => <button type="button" key={status} disabled={saving || status === selectedProject.modules[selectedModule].status} onClick={() => changeModuleStatus(status)} className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-sm hover:border-sky-500 disabled:opacity-40">{status}</button>)}</div>
-            </form>
-          </aside>
-        </div>
+        <ProjectDrawer
+          key={`${selectedProject.id}-${drawerIntent}`}
+          project={selectedProject}
+          selectedModule={selectedModule}
+          initialMode={drawerIntent === 'module' ? 'module' : 'details'}
+          initialConfirmClose={drawerIntent === 'close'}
+          schedule={scheduleDraft}
+          details={detailsDraft}
+          saving={saving}
+          onModuleChange={changeSelectedModule}
+          onScheduleChange={setScheduleDraft}
+          onDetailsChange={setDetailsDraft}
+          onStatusChange={changeModuleStatus}
+          onSaveSchedule={saveSelectedSchedule}
+          onSaveDetails={saveProjectDetails}
+          onCloseProject={confirmCloseProject}
+          onDismiss={() => setSelectedProject(null)}
+        />
       )}
 
-      <div className={`fixed inset-0 z-50 bg-black/60 transition-opacity duration-300 ${showCreate ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`} onClick={() => setShowCreate(false)}>
-        <aside className={`ml-auto h-full w-full max-w-md overflow-y-auto border-l border-slate-700 bg-slate-900 p-6 shadow-2xl transition-transform duration-300 ease-out ${showCreate ? 'translate-x-0' : 'translate-x-full'}`} onClick={(event) => event.stopPropagation()}>
-          <form onSubmit={createProject} className="space-y-5">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-5"><div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-400">Új érdeklődés</p><h2 className="mt-2 text-xl font-bold">Gyors projektindítás</h2></div><button type="button" onClick={() => setShowCreate(false)} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400">✕</button></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Projekt megnevezése *</label><input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Ügyfél neve *</label><input required value={form.clientName} onChange={(event) => setForm({ ...form, clientName: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Helyszín / cím</label><input value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">Telefonszám</label><input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" /></div>
-            <button disabled={saving} className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold hover:bg-emerald-500 disabled:opacity-50">{saving ? 'Mentés…' : 'Érdeklődés rögzítése'}</button>
-          </form>
-        </aside>
-      </div>
+      <InquiryDrawer
+        open={showCreate}
+        form={inquiryForm}
+        saving={saving}
+        onChange={setInquiryForm}
+        onClose={() => setShowCreate(false)}
+        onSubmit={createProject}
+      />
     </main>
   );
 }
