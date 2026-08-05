@@ -1,4 +1,5 @@
 import type { ModuleKey, Project } from '@/lib/projectService';
+import type { QuoteDraft } from '@/lib/quoteService';
 
 export type DashboardView = 'projects' | 'calendar' | 'team';
 
@@ -43,3 +44,5 @@ export type AssignmentOption = {
   type: 'member' | 'team';
   label: string;
 };
+
+export type { QuoteDraft };

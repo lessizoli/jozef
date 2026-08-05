@@ -5,12 +5,14 @@ initializeApp();
 setGlobalOptions({ region: 'europe-west1' });
 
 import { sendQuoteWithBuffer } from './quotes/sendQuoteWithBuffer';
+import { generateQuotePdf } from './quotes/generateQuotePdf';
 import { registerTenant } from './auth/registerTenant'; // Ez az importod
 import { inviteCompanyMember, updateCompanyMember } from './auth/manageCompanyMembers';
 
 // Figyelj rá, hogy mind a kettő itt legyen bent az exportban!
 export { 
   sendQuoteWithBuffer,
+  generateQuotePdf,
   registerTenant,
   inviteCompanyMember,
   updateCompanyMember,

@@ -18,6 +18,7 @@ import type {
   DashboardView,
   InquiryForm,
   ProjectDetailsDraft,
+  QuoteDraft,
   ScheduleDraft,
 } from '@/components/dashboard/types';
 import { auth } from '@/lib/firebase';
@@ -31,6 +32,7 @@ import {
   updateProjectModuleSchedule,
   updateProjectModuleStatus,
 } from '@/lib/projectService';
+import { downloadProjectQuote, saveProjectQuote, sendProjectQuote } from '@/lib/quoteService';
 import {
   createTeam,
   deleteTeam,
@@ -51,6 +53,34 @@ const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phon
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
 const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
 
+function dateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function createEmptyQuote(project: Project): QuoteDraft {
+  const issueDate = new Date();
+  const validUntil = new Date(issueDate);
+  validUntil.setDate(validUntil.getDate() + 14);
+  return {
+    quoteNumber: `AJ-${project.code}`,
+    issueDate: dateInputValue(issueDate),
+    validUntil: dateInputValue(validUntil),
+    items: [{
+      id: `item-${Date.now()}`,
+      category: 'material',
+      description: '',
+      quantity: 1,
+      unit: 'db',
+      unitPrice: 0,
+      vatRate: 27,
+    }],
+    note: '',
+  };
+}
+
 type DrawerIntent = ProjectDrawerMode | 'close';
 
 function errorMessage(error: unknown) {
@@ -64,9 +94,11 @@ export default function Dashboard() {
   const [drawerIntent, setDrawerIntent] = useState<DrawerIntent>('module');
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft>(emptySchedule);
   const [detailsDraft, setDetailsDraft] = useState<ProjectDetailsDraft>(emptyDetails);
+  const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const [view, setView] = useState<DashboardView>('projects');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [calendarDraft, setCalendarDraft] = useState<CalendarDraft | null>(null);
@@ -130,6 +162,7 @@ export default function Dashboard() {
 
   async function runAction(action: () => Promise<void>) {
     setActionError('');
+    setActionMessage('');
     setSaving(true);
     try {
       await action();
@@ -202,13 +235,25 @@ export default function Dashboard() {
     });
   }
 
+  function loadQuoteDraft(project: Project) {
+    const quote = project.quoteData;
+    setQuoteDraft(quote ? {
+      quoteNumber: quote.quoteNumber,
+      issueDate: quote.issueDate,
+      validUntil: quote.validUntil,
+      items: quote.items.map((item) => ({ ...item })),
+      note: quote.note,
+    } : createEmptyQuote(project));
+  }
+
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent('module');
+    setDrawerIntent(key === 'quote' ? 'quote' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadDetailsDraft(project);
+    loadQuoteDraft(project);
     setSelectedProject(project);
   }
 
@@ -216,6 +261,7 @@ export default function Dashboard() {
     setActionError('');
     setDrawerIntent('details');
     loadDetailsDraft(project);
+    loadQuoteDraft(project);
     setSelectedProject(project);
   }
 
@@ -223,6 +269,7 @@ export default function Dashboard() {
     setActionError('');
     setDrawerIntent('close');
     loadDetailsDraft(project);
+    loadQuoteDraft(project);
     setSelectedProject(project);
   }
 
@@ -230,6 +277,32 @@ export default function Dashboard() {
     if (!selectedProject) return;
     setSelectedModule(key);
     loadScheduleDraft(selectedProject, key);
+  }
+
+  async function saveSelectedQuote() {
+    if (!selectedProject || !quoteDraft) return;
+    await runAction(async () => {
+      await saveProjectQuote(selectedProject.id, quoteDraft);
+      setActionMessage('Az ajánlat mentve.');
+    });
+  }
+
+  async function downloadSelectedQuote() {
+    if (!selectedProject || !quoteDraft) return;
+    await runAction(async () => {
+      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await downloadProjectQuote(selectedProject.id);
+      setActionMessage('A PDF elkészült és letöltődött.');
+    });
+  }
+
+  async function sendSelectedQuote() {
+    if (!selectedProject || !quoteDraft) return;
+    await runAction(async () => {
+      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await sendProjectQuote(selectedProject.id);
+      setActionMessage(`Az ajánlat elküldve: ${selectedProject.client.email}`);
+    });
   }
 
   function openCalendarDraft(date: string) {
@@ -314,6 +387,12 @@ export default function Dashboard() {
             <button type="button" onClick={() => setActionError('')} aria-label="Hibaüzenet bezárása">✕</button>
           </div>
         )}
+        {actionMessage && (
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200" role="status">
+            <span>{actionMessage}</span>
+            <button type="button" onClick={() => setActionMessage('')} aria-label="Üzenet bezárása">✕</button>
+          </div>
+        )}
         <DashboardStats
           activeProjects={activeProjects.length}
           delayedProjects={delayedCount}
@@ -369,7 +448,7 @@ export default function Dashboard() {
         />
       )}
 
-      {selectedProject && (
+      {selectedProject && quoteDraft && (
         <ProjectDrawer
           key={`${selectedProject.id}-${drawerIntent}`}
           project={selectedProject}
@@ -378,14 +457,19 @@ export default function Dashboard() {
           initialConfirmClose={drawerIntent === 'close'}
           schedule={scheduleDraft}
           details={detailsDraft}
+          quote={quoteDraft}
           saving={saving}
           assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}
           onScheduleChange={setScheduleDraft}
           onDetailsChange={setDetailsDraft}
+          onQuoteChange={setQuoteDraft}
           onStatusChange={changeModuleStatus}
           onSaveSchedule={saveSelectedSchedule}
           onSaveDetails={saveProjectDetails}
+          onSaveQuote={saveSelectedQuote}
+          onDownloadQuote={downloadSelectedQuote}
+          onSendQuote={sendSelectedQuote}
           onCloseProject={confirmCloseProject}
           onDismiss={() => setSelectedProject(null)}
         />

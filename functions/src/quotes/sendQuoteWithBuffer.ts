@@ -1,98 +1,43 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
-import { getFirestore } from 'firebase-admin/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
-import PDFDocument from 'pdfkit';
-
-const db = getFirestore();
+import { createQuotePdf } from './quotePdf';
+import { getQuoteContext, quoteFilename } from './quoteModel';
 
 const SMTP_USER = defineSecret('SMTP_USER');
 const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
 
 export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP_HOST] }, async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');
-
-  const { projectId } = request.data;
-  if (!projectId) throw new HttpsError('invalid-argument', 'Hiányzó projektazonosító.');
-
-  // 1. Felhasználó és cég ellenőrzése (multi-tenant izoláció)
-  const userSnap = await db.doc(`users/${callerUid}`).get();
-  const user = userSnap.data();
-  if (!userSnap.exists || !user?.companyId || user.active === false) {
-    throw new HttpsError('permission-denied', 'Nincs jogosultságod ehhez a projekthez.');
-  }
-
-  // 2. Projekt betöltése kizárólag a bejelentkezett felhasználó cégéből
-  const projectRef = db.doc(`companies/${user.companyId}/projects/${projectId}`);
-  const projectSnap = await projectRef.get();
-  if (!projectSnap.exists) throw new HttpsError('not-found', 'A projekt nem található.');
-  const project = projectSnap.data();
-
-  if (!project?.quoteData) {
-    throw new HttpsError('failed-precondition', 'Ehhez a projekthez még nem készült kalkuláció.');
-  }
-
-  if (!project.client?.email) {
+  const context = await getQuoteContext(request.auth?.uid, request.data?.projectId);
+  const email = context.project.client?.email;
+  if (typeof email !== 'string' || !email.trim()) {
     throw new HttpsError('failed-precondition', 'Az ügyfél e-mail-címe nincs megadva.');
   }
 
-  // 3. PDF generálása a memóriában (Buffer)
-  const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    const chunks: Buffer[] = [];
-
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', (err) => reject(err));
-
-    // PDF Tartalom felépítése
-    doc.fontSize(20).text('ÁRAJÁNLAT', { align: 'center' }).moveDown();
-    doc.fontSize(12).text(`Projekt: ${project.title}`);
-    doc.text(`Ügyfél: ${project.client?.name}`);
-    doc.text(`Helyszín: ${project.client?.address}`).moveDown();
-
-    doc.text('--------------------------------------------------').moveDown();
-    doc.text(`Anyagköltség összesen: ${project.quoteData.materialCost.toLocaleString()} Ft`);
-    doc.text(`Munkadíj összesen: ${project.quoteData.laborCost.toLocaleString()} Ft`);
-    doc.text(`Végösszeg: ${project.quoteData.totalCost.toLocaleString()} Ft`).moveDown();
-    
-    doc.fontSize(10).text('Köszönjük a bizalmat!', { align: 'center' });
-    doc.end();
-  });
-
-  // 4. E-mail küldése Nodemailerrel
+  const pdf = await createQuotePdf(context);
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST.value(),
     port: 465,
     secure: true,
-    auth: {
-      user: SMTP_USER.value(),
-      pass: SMTP_PASS.value(),
-    },
+    auth: { user: SMTP_USER.value(), pass: SMTP_PASS.value() },
   });
 
   await transporter.sendMail({
-    from: `"Envision PMS" <${SMTP_USER.value()}>`,
-    to: project.client.email,
-    subject: `Árajánlat - ${project.title}`,
-    text: `Tisztelt ${project.client?.name}!\n\nMellékelten küldjük a kért árajánlatot.`,
-    attachments: [
-      {
-        filename: `arajanlat_${projectId}.pdf`,
-        content: pdfBuffer,
-      },
-    ],
+    from: `"${String(context.company.name ?? 'Envision CRM')}" <${SMTP_USER.value()}>`,
+    to: email,
+    subject: `Árajánlat – ${String(context.project.title ?? context.quote.quoteNumber)}`,
+    text: `Tisztelt ${String(context.project.client?.name ?? 'Ügyfelünk')}!\n\nMellékelten küldjük a(z) ${context.quote.quoteNumber} számú árajánlatot, amely ${context.quote.validUntil}-ig érvényes.\n\nÜdvözlettel:\n${String(context.company.name ?? 'Envision CRM')}`,
+    attachments: [{ filename: quoteFilename(context.quote.quoteNumber), content: pdf }],
   });
 
-  // 5. Státusz frissítése Firestore-ban
-  await projectRef.update({
+  await context.projectRef.update({
+    'quoteData.sentAt': new Date(),
     'modules.quote.status': 'Kiküldve',
+    'modules.quote.delayed': false,
     status: 'Folyamatban',
     lastAction: 'Ajánlat: Kiküldve',
-    updatedAt: new Date()
+    updatedAt: new Date(),
   });
-
   return { success: true };
 });

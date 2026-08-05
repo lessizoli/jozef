@@ -24,6 +24,31 @@ export type ProjectModule = {
   delayed?: boolean;
 };
 
+export type QuoteItemCategory = 'material' | 'labor' | 'other';
+
+export type QuoteItem = {
+  id: string;
+  category: QuoteItemCategory;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  vatRate: number;
+};
+
+export type QuoteData = {
+  quoteNumber: string;
+  issueDate: string;
+  validUntil: string;
+  items: QuoteItem[];
+  note: string;
+  netTotal: number;
+  vatTotal: number;
+  grossTotal: number;
+  updatedAt?: unknown;
+  sentAt?: unknown;
+};
+
 export interface Project {
   id: string;
   companyId: string;
@@ -39,6 +64,7 @@ export interface Project {
     phone: string;
     address: string;
   };
+  quoteData?: QuoteData;
   modules: Record<ModuleKey, ProjectModule>;
   createdAt: unknown;
   updatedAt: unknown;
@@ -129,13 +155,61 @@ function withModuleDefaults(module: ProjectModule | undefined, status: string): 
   };
 }
 
+function numberOrZero(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function normalizeQuoteData(value: unknown, projectCode: string): QuoteData | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const data = value as Record<string, unknown>;
+  const rawItems = Array.isArray(data.items) ? data.items : [];
+  const items = rawItems.flatMap((rawItem, index) => {
+    if (!rawItem || typeof rawItem !== 'object') return [];
+    const item = rawItem as Record<string, unknown>;
+    const category = ['material', 'labor', 'other'].includes(String(item.category))
+      ? item.category as QuoteItemCategory
+      : 'other';
+    return [{
+      id: typeof item.id === 'string' ? item.id : `item-${index + 1}`,
+      category,
+      description: typeof item.description === 'string' ? item.description : '',
+      quantity: numberOrZero(item.quantity),
+      unit: typeof item.unit === 'string' ? item.unit : 'db',
+      unitPrice: numberOrZero(item.unitPrice),
+      vatRate: numberOrZero(item.vatRate),
+    }];
+  });
+
+  // A korai verzió csak két összeget tárolt. Ezeket automatikusan tételsorokká alakítjuk.
+  if (items.length === 0) {
+    const materialCost = numberOrZero(data.materialCost);
+    const laborCost = numberOrZero(data.laborCost);
+    if (materialCost > 0) items.push({ id: 'legacy-material', category: 'material', description: 'Anyagköltség', quantity: 1, unit: 'tétel', unitPrice: materialCost, vatRate: 0 });
+    if (laborCost > 0) items.push({ id: 'legacy-labor', category: 'labor', description: 'Munkadíj', quantity: 1, unit: 'tétel', unitPrice: laborCost, vatRate: 0 });
+  }
+
+  return {
+    quoteNumber: typeof data.quoteNumber === 'string' ? data.quoteNumber : `AJ-${projectCode}`,
+    issueDate: typeof data.issueDate === 'string' ? data.issueDate : '',
+    validUntil: typeof data.validUntil === 'string' ? data.validUntil : '',
+    items,
+    note: typeof data.note === 'string' ? data.note : '',
+    netTotal: numberOrZero(data.netTotal ?? data.totalCost),
+    vatTotal: numberOrZero(data.vatTotal),
+    grossTotal: numberOrZero(data.grossTotal ?? data.totalCost),
+    updatedAt: data.updatedAt,
+    sentAt: data.sentAt,
+  };
+}
+
 function normalizeProject(id: string, companyId: string, data: Record<string, unknown>): Project {
   const modules = (data.modules ?? {}) as Partial<Record<ModuleKey, ProjectModule>>;
+  const code = typeof data.code === 'string' ? data.code : `PRJ-${id.slice(0, 6).toUpperCase()}`;
 
   return {
     id,
     companyId,
-    code: typeof data.code === 'string' ? data.code : `PRJ-${id.slice(0, 6).toUpperCase()}`,
+    code,
     title: typeof data.title === 'string' ? data.title : 'Névtelen projekt',
     status: typeof data.status === 'string' ? data.status : 'Folyamatban',
     lastAction: typeof data.lastAction === 'string' ? data.lastAction : 'Projekt létrehozva',
@@ -147,6 +221,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       phone: '',
       address: '',
     },
+    quoteData: normalizeQuoteData(data.quoteData, code),
     modules: {
       survey: withModuleDefaults(modules.survey, 'Folyamatban'),
       quote: withModuleDefaults(modules.quote, 'Intézendő'),

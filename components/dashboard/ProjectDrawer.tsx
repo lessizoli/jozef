@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
-import type { AssignmentOption, ProjectDetailsDraft, ScheduleDraft } from './types';
+import QuoteEditor from './QuoteEditor';
+import type { AssignmentOption, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
 
-export type ProjectDrawerMode = 'module' | 'details';
+export type ProjectDrawerMode = 'module' | 'quote' | 'details';
 
 type Props = {
   project: Project;
@@ -12,14 +13,19 @@ type Props = {
   initialConfirmClose: boolean;
   schedule: ScheduleDraft;
   details: ProjectDetailsDraft;
+  quote: QuoteDraft;
   saving: boolean;
   assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
   onScheduleChange: (schedule: ScheduleDraft) => void;
   onDetailsChange: (details: ProjectDetailsDraft) => void;
+  onQuoteChange: (quote: QuoteDraft) => void;
   onStatusChange: (status: string) => void;
   onSaveSchedule: (event: React.FormEvent<HTMLFormElement>) => void;
   onSaveDetails: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSaveQuote: () => void;
+  onDownloadQuote: () => void;
+  onSendQuote: () => void;
   onCloseProject: () => void;
   onDismiss: () => void;
 };
@@ -31,14 +37,19 @@ export default function ProjectDrawer({
   initialConfirmClose,
   schedule,
   details,
+  quote,
   saving,
   assignmentOptions,
   onModuleChange,
   onScheduleChange,
   onDetailsChange,
+  onQuoteChange,
   onStatusChange,
   onSaveSchedule,
   onSaveDetails,
+  onSaveQuote,
+  onDownloadQuote,
+  onSendQuote,
   onCloseProject,
   onDismiss,
 }: Props) {
@@ -60,9 +71,12 @@ export default function ProjectDrawer({
           <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label="Bezárás">✕</button>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2">
+        <div className="mt-6 grid grid-cols-3 gap-2">
           <button type="button" onClick={() => setMode('module')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'module' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Folyamat kezelése
+          </button>
+          <button type="button" disabled={!project.modules.quote.enabled} onClick={() => setMode('quote')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'quote' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
+            Ajánlat
           </button>
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Projektadatok
@@ -77,7 +91,10 @@ export default function ProjectDrawer({
                   type="button"
                   key={key}
                   disabled={project.closed || !project.modules[key].enabled}
-                  onClick={() => onModuleChange(key)}
+                  onClick={() => {
+                    onModuleChange(key);
+                    if (key === 'quote') setMode('quote');
+                  }}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}
                 >
                   {moduleLabels[key]}
@@ -135,6 +152,22 @@ export default function ProjectDrawer({
               </form>
             )}
           </>
+        ) : mode === 'quote' ? (
+          project.closed ? (
+            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">
+              A lezárt projekt ajánlata már nem módosítható.
+            </div>
+          ) : (
+            <QuoteEditor
+              draft={quote}
+              clientEmail={project.client.email}
+              saving={saving}
+              onChange={onQuoteChange}
+              onSave={onSaveQuote}
+              onDownload={onDownloadQuote}
+              onSend={onSendQuote}
+            />
+          )
         ) : (
           <form onSubmit={onSaveDetails} className="mt-6 space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
             <div>
