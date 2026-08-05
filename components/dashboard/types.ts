@@ -1,6 +1,6 @@
 import type { ModuleKey, Project } from '@/lib/projectService';
 
-export type DashboardView = 'projects' | 'calendar';
+export type DashboardView = 'projects' | 'calendar' | 'team';
 
 export type InquiryForm = {
   title: string;
@@ -21,6 +21,8 @@ export type ScheduleDraft = {
   date: string;
   time: string;
   assignedTo: string;
+  assigneeId: string;
+  assigneeType: 'member' | 'team' | '';
 };
 
 export type CalendarDraft = ScheduleDraft & {
@@ -34,4 +36,10 @@ export type CalendarEvent = {
   date: string;
   time: string;
   assignedTo: string;
+};
+
+export type AssignmentOption = {
+  id: string;
+  type: 'member' | 'team';
+  label: string;
 };

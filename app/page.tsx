@@ -9,10 +9,12 @@ import DashboardStats from '@/components/dashboard/DashboardStats';
 import InquiryDrawer from '@/components/dashboard/InquiryDrawer';
 import ProjectDrawer, { type ProjectDrawerMode } from '@/components/dashboard/ProjectDrawer';
 import ProjectList from '@/components/dashboard/ProjectList';
+import TeamManagement from '@/components/dashboard/TeamManagement';
 import { getCalendarDays, moduleKeys } from '@/components/dashboard/dashboardConfig';
 import type {
   CalendarDraft,
   CalendarEvent,
+  AssignmentOption,
   DashboardView,
   InquiryForm,
   ProjectDetailsDraft,
@@ -29,9 +31,24 @@ import {
   updateProjectModuleSchedule,
   updateProjectModuleStatus,
 } from '@/lib/projectService';
+import {
+  createTeam,
+  deleteTeam,
+  ensureCurrentMember,
+  inviteCompanyMember,
+  subscribeToInvites,
+  subscribeToMembers,
+  subscribeToTeams,
+  type CompanyInvite,
+  type CompanyMember,
+  type CompanyTeam,
+  type MemberRole,
+  updateCompanyMember,
+  updateTeam,
+} from '@/lib/teamService';
 
 const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '' };
-const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '' };
+const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
 const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
 
 type DrawerIntent = ProjectDrawerMode | 'close';
@@ -54,11 +71,33 @@ export default function Dashboard() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [calendarDraft, setCalendarDraft] = useState<CalendarDraft | null>(null);
   const [inquiryForm, setInquiryForm] = useState<InquiryForm>(emptyInquiry);
+  const [members, setMembers] = useState<CompanyMember[]>([]);
+  const [teams, setTeams] = useState<CompanyTeam[]>([]);
+  const [invites, setInvites] = useState<CompanyInvite[]>([]);
+  const [canManageTeam, setCanManageTeam] = useState(false);
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
     setSelectedProject((current) => current ? items.find((item) => item.id === current.id) ?? null : null);
   }), []);
+
+  useEffect(() => {
+    const unsubscribers: Array<() => void> = [];
+    let cancelled = false;
+    void ensureCurrentMember().then((context) => {
+      if (cancelled) return;
+      setCanManageTeam(context.canManage);
+      unsubscribers.push(
+        subscribeToMembers(context.companyId, setMembers),
+        subscribeToTeams(context.companyId, setTeams),
+        subscribeToInvites(context.companyId, setInvites),
+      );
+    }).catch((error) => setActionError(errorMessage(error)));
+    return () => {
+      cancelled = true;
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, []);
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.closed), [projects]);
   const delayedCount = useMemo(
@@ -79,6 +118,10 @@ export default function Dashboard() {
       }];
     }))
     .sort((a, b) => a.time.localeCompare(b.time)), [activeProjects]);
+  const assignmentOptions = useMemo<AssignmentOption[]>(() => [
+    ...members.filter((member) => member.active).map((member) => ({ id: member.uid, type: 'member' as const, label: member.fullName })),
+    ...teams.filter((team) => team.active).map((team) => ({ id: team.id, type: 'team' as const, label: team.name })),
+  ], [members, teams]);
 
   const monthTitle = calendarMonth.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
   const calendarDraftProject = calendarDraft
@@ -119,6 +162,8 @@ export default function Dashboard() {
       date: scheduleDraft.date || null,
       time: scheduleDraft.time || null,
       assignedTo: scheduleDraft.assignedTo.trim() || null,
+      assigneeId: scheduleDraft.assigneeId || null,
+      assigneeType: scheduleDraft.assigneeType || null,
     }));
   }
 
@@ -142,6 +187,8 @@ export default function Dashboard() {
       date: projectModule.scheduledAt ?? '',
       time: projectModule.scheduledTime ?? '',
       assignedTo: projectModule.assignedTo ?? '',
+      assigneeId: projectModule.assigneeId ?? '',
+      assigneeType: projectModule.assigneeType ?? '',
     });
   }
 
@@ -196,6 +243,8 @@ export default function Dashboard() {
       projectId: firstProject?.id ?? '',
       moduleKey: firstModule,
       assignedTo: '',
+      assigneeId: '',
+      assigneeType: '',
     });
   }
 
@@ -218,6 +267,8 @@ export default function Dashboard() {
         date: calendarDraft.date,
         time: calendarDraft.time,
         assignedTo: calendarDraft.assignedTo.trim() || null,
+        assigneeId: calendarDraft.assigneeId || null,
+        assigneeType: calendarDraft.assigneeType || null,
       });
       setCalendarDraft(null);
     });
@@ -225,6 +276,26 @@ export default function Dashboard() {
 
   function moveMonth(offset: number) {
     setCalendarMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  }
+
+  function handleInvite(input: { fullName: string; email: string; role: MemberRole }) {
+    return runAction(async () => { await inviteCompanyMember(input); });
+  }
+
+  function handleMemberUpdate(member: CompanyMember, role: MemberRole, active: boolean) {
+    return runAction(async () => { await updateCompanyMember({ uid: member.uid, role, active }); });
+  }
+
+  function handleTeamCreate(name: string, memberIds: string[]) {
+    return runAction(async () => { await createTeam(name, memberIds); });
+  }
+
+  function handleTeamUpdate(teamId: string, name: string, memberIds: string[]) {
+    return runAction(async () => { await updateTeam(teamId, name, memberIds); });
+  }
+
+  function handleTeamDelete(teamId: string) {
+    return runAction(async () => { await deleteTeam(teamId); });
   }
 
   return (
@@ -257,7 +328,7 @@ export default function Dashboard() {
             onEditProject={openProjectDetails}
             onCloseProject={requestProjectClose}
           />
-        ) : (
+        ) : view === 'calendar' ? (
           <CalendarView
             monthTitle={monthTitle}
             days={calendarDays}
@@ -268,6 +339,19 @@ export default function Dashboard() {
             onToday={() => setCalendarMonth(new Date())}
             onOpenModule={openModule}
           />
+        ) : (
+          <TeamManagement
+            members={members}
+            teams={teams}
+            invites={invites}
+            canManage={canManageTeam}
+            saving={saving}
+            onInvite={handleInvite}
+            onMemberUpdate={handleMemberUpdate}
+            onTeamCreate={handleTeamCreate}
+            onTeamUpdate={handleTeamUpdate}
+            onTeamDelete={handleTeamDelete}
+          />
         )}
       </div>
 
@@ -277,6 +361,7 @@ export default function Dashboard() {
           projects={projects}
           selectedProject={calendarDraftProject}
           saving={saving}
+          assignmentOptions={assignmentOptions}
           onChange={setCalendarDraft}
           onProjectChange={changeCalendarDraftProject}
           onClose={() => setCalendarDraft(null)}
@@ -294,6 +379,7 @@ export default function Dashboard() {
           schedule={scheduleDraft}
           details={detailsDraft}
           saving={saving}
+          assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}
           onScheduleChange={setScheduleDraft}
           onDetailsChange={setDetailsDraft}

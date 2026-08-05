@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
-import type { ProjectDetailsDraft, ScheduleDraft } from './types';
+import type { AssignmentOption, ProjectDetailsDraft, ScheduleDraft } from './types';
 
 export type ProjectDrawerMode = 'module' | 'details';
 
@@ -13,6 +13,7 @@ type Props = {
   schedule: ScheduleDraft;
   details: ProjectDetailsDraft;
   saving: boolean;
+  assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
   onScheduleChange: (schedule: ScheduleDraft) => void;
   onDetailsChange: (details: ProjectDetailsDraft) => void;
@@ -31,6 +32,7 @@ export default function ProjectDrawer({
   schedule,
   details,
   saving,
+  assignmentOptions,
   onModuleChange,
   onScheduleChange,
   onDetailsChange,
@@ -102,8 +104,19 @@ export default function ProjectDrawer({
                   </div>
                 </div>
                 <div className="mt-3">
-                  <label className="mb-1 block text-xs font-semibold text-slate-500">Feladatot végző neve / csapat</label>
-                  <input value={schedule.assignedTo} onChange={(event) => onScheduleChange({ ...schedule, assignedTo: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" />
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">Felelős munkatárs / csapat</label>
+                  <select
+                    value={schedule.assigneeId ? `${schedule.assigneeType}:${schedule.assigneeId}` : ''}
+                    onChange={(event) => {
+                      const option = assignmentOptions.find((item) => `${item.type}:${item.id}` === event.target.value);
+                      onScheduleChange({ ...schedule, assignedTo: option?.label ?? '', assigneeId: option?.id ?? '', assigneeType: option?.type ?? '' });
+                    }}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500"
+                  >
+                    <option value="">Nincs hozzárendelve</option>
+                    <optgroup label="Munkatársak">{assignmentOptions.filter((item) => item.type === 'member').map((item) => <option key={`member-${item.id}`} value={`member:${item.id}`}>{item.label}</option>)}</optgroup>
+                    <optgroup label="Csapatok">{assignmentOptions.filter((item) => item.type === 'team').map((item) => <option key={`team-${item.id}`} value={`team:${item.id}`}>{item.label}</option>)}</optgroup>
+                  </select>
                 </div>
                 <button disabled={saving} className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">Időpont mentése</button>
                 <div className="mt-5 space-y-2">

@@ -18,6 +18,8 @@ export type ProjectModule = {
   scheduledAt?: string | null;
   scheduledTime?: string | null;
   assignedTo?: string | null;
+  assigneeId?: string | null;
+  assigneeType?: 'member' | 'team' | null;
   completedAt?: unknown;
   delayed?: boolean;
 };
@@ -120,6 +122,8 @@ function withModuleDefaults(module: ProjectModule | undefined, status: string): 
     scheduledAt: module?.scheduledAt ?? null,
     scheduledTime: module?.scheduledTime ?? null,
     assignedTo: module?.assignedTo ?? null,
+    assigneeId: module?.assigneeId ?? null,
+    assigneeType: module?.assigneeType ?? null,
     completedAt: module?.completedAt,
     delayed: module?.delayed ?? false,
   };
@@ -196,7 +200,7 @@ export async function createNewInquiry(
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const code = `PRJ-${Date.now().toString().slice(-6)}`;
-  const emptySchedule = { scheduledAt: null, scheduledTime: null, assignedTo: null };
+  const emptySchedule = { scheduledAt: null, scheduledTime: null, assignedTo: null, assigneeId: null, assigneeType: null };
 
   const documentReference = await addDoc(companyProjectsCollection(companyId), {
     companyId,
@@ -300,6 +304,8 @@ export async function updateProjectModuleSchedule(
     date: string | null;
     time: string | null;
     assignedTo: string | null;
+    assigneeId: string | null;
+    assigneeType: 'member' | 'team' | null;
   },
 ) {
   const companyId = await getAuthenticatedCompanyId();
@@ -312,6 +318,8 @@ export async function updateProjectModuleSchedule(
     [`modules.${moduleKey}.scheduledAt`]: schedule.date,
     [`modules.${moduleKey}.scheduledTime`]: schedule.time,
     [`modules.${moduleKey}.assignedTo`]: schedule.assignedTo,
+    [`modules.${moduleKey}.assigneeId`]: schedule.assigneeId,
+    [`modules.${moduleKey}.assigneeType`]: schedule.assigneeType,
     lastAction: readableSchedule
       ? `${moduleLabels[moduleKey]} időpont: ${readableSchedule}`
       : `${moduleLabels[moduleKey]} időpont törölve`,
@@ -328,6 +336,8 @@ export async function updateProjectModuleDate(
     date: scheduledAt,
     time: null,
     assignedTo: null,
+    assigneeId: null,
+    assigneeType: null,
   });
 }
 

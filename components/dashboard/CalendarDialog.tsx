@@ -1,12 +1,13 @@
 import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels } from './dashboardConfig';
-import type { CalendarDraft } from './types';
+import type { AssignmentOption, CalendarDraft } from './types';
 
 type Props = {
   draft: CalendarDraft;
   projects: Project[];
   selectedProject: Project | null;
   saving: boolean;
+  assignmentOptions: AssignmentOption[];
   onChange: (draft: CalendarDraft) => void;
   onProjectChange: (projectId: string) => void;
   onClose: () => void;
@@ -18,6 +19,7 @@ export default function CalendarDialog({
   projects,
   selectedProject,
   saving,
+  assignmentOptions,
   onChange,
   onProjectChange,
   onClose,
@@ -61,8 +63,19 @@ export default function CalendarDialog({
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold text-slate-400">Feladatot végző neve / csapat</label>
-          <input value={draft.assignedTo} onChange={(event) => onChange({ ...draft, assignedTo: event.target.value })} placeholder="pl. Nagy Péter vagy 2-es kivitelező csapat" className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" />
+          <label className="mb-1.5 block text-xs font-semibold text-slate-400">Felelős munkatárs / csapat</label>
+          <select
+            value={draft.assigneeId ? `${draft.assigneeType}:${draft.assigneeId}` : ''}
+            onChange={(event) => {
+              const option = assignmentOptions.find((item) => `${item.type}:${item.id}` === event.target.value);
+              onChange({ ...draft, assignedTo: option?.label ?? '', assigneeId: option?.id ?? '', assigneeType: option?.type ?? '' });
+            }}
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"
+          >
+            <option value="">Nincs hozzárendelve</option>
+            <optgroup label="Munkatársak">{assignmentOptions.filter((item) => item.type === 'member').map((item) => <option key={`member-${item.id}`} value={`member:${item.id}`}>{item.label}</option>)}</optgroup>
+            <optgroup label="Csapatok">{assignmentOptions.filter((item) => item.type === 'team').map((item) => <option key={`team-${item.id}`} value={`team:${item.id}`}>{item.label}</option>)}</optgroup>
+          </select>
         </div>
         {selectedProject && (
           <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-400">

@@ -76,10 +76,10 @@ service cloud.firestore {
 
       match /{adminSection}/{documentId} {
         allow read: if belongsTo(companyId)
-          && adminSection in ['members', 'settings', 'invites'];
+          && adminSection in ['members', 'teams', 'settings', 'invites'];
 
         allow create, update, delete: if companyAdmin(companyId)
-          && adminSection in ['members', 'settings', 'invites'];
+          && adminSection in ['members', 'teams', 'settings', 'invites'];
       }
 
       match /activityLog/{logId} {

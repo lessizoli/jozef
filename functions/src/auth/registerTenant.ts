@@ -46,6 +46,16 @@ export const registerTenant = onCall(async (request) => {
       createdAt: new Date(),
     });
 
+    await companyRef.collection('members').doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email,
+      fullName,
+      role: 'company_admin',
+      active: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
     return { success: true, uid: userRecord.uid };
   } catch (error: any) {
     console.error("Regisztrációs hiba:", error);
