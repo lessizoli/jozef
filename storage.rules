@@ -46,6 +46,14 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    match /companies/{companyId}/projects/{projectId}/construction/{fileName} {
+      allow read: if belongsTo(companyId);
+      allow create: if belongsTo(companyId)
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow update, delete: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

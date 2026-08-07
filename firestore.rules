@@ -74,6 +74,14 @@ service cloud.firestore {
         allow delete: if belongsTo(companyId);
       }
 
+      match /projects/{projectId}/constructionEntries/{entryId} {
+        allow read: if belongsTo(companyId);
+        allow create: if belongsTo(companyId)
+          && request.resource.data.type in ['log', 'photo']
+          && request.resource.data.createdBy == request.auth.uid;
+        allow update, delete: if false;
+      }
+
       match /{adminSection}/{documentId} {
         allow read: if belongsTo(companyId)
           && adminSection in ['members', 'teams', 'settings', 'invites'];
