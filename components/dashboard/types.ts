@@ -1,7 +1,7 @@
 import type { ModuleKey, Project } from '@/lib/projectService';
 import type { QuoteDraft } from '@/lib/quoteService';
 
-export type DashboardView = 'projects' | 'calendar' | 'team';
+export type DashboardView = 'projects' | 'calendar' | 'team' | 'popup';
 
 export type InquiryForm = {
   title: string;

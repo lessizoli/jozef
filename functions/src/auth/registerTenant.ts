@@ -57,8 +57,9 @@ export const registerTenant = onCall(async (request) => {
     });
 
     return { success: true, uid: userRecord.uid };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Regisztrációs hiba:", error);
-    throw new HttpsError('internal', error.message);
+    const message = error instanceof Error ? error.message : 'A regisztráció nem sikerült.';
+    throw new HttpsError('internal', message);
   }
 });
