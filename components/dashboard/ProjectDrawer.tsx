@@ -3,9 +3,10 @@ import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
 import ContractEditor from './ContractEditor';
 import QuoteEditor from './QuoteEditor';
+import ConstructionEditor from './ConstructionEditor';
 import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
 
-export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'details';
+export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'construction' | 'details';
 
 type Props = {
   project: Project;
@@ -36,6 +37,7 @@ type Props = {
   onDownloadSignedContract: () => void;
   onCloseProject: () => void;
   onDismiss: () => void;
+  onConstructionAction: (action: () => Promise<void>, message: string) => void;
 };
 
 export default function ProjectDrawer({
@@ -67,6 +69,7 @@ export default function ProjectDrawer({
   onDownloadSignedContract,
   onCloseProject,
   onDismiss,
+  onConstructionAction,
 }: Props) {
   const [mode, setMode] = useState<ProjectDrawerMode>(initialMode);
   const [confirmingClose, setConfirmingClose] = useState(initialConfirmClose);
@@ -86,7 +89,7 @@ export default function ProjectDrawer({
           <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label="Bezárás">✕</button>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-5">
           <button type="button" onClick={() => setMode('module')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'module' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Folyamat kezelése
           </button>
@@ -95,6 +98,9 @@ export default function ProjectDrawer({
           </button>
           <button type="button" disabled={!project.modules.contract.enabled} onClick={() => setMode('contract')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'contract' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
             Szerződés
+          </button>
+          <button type="button" disabled={!project.modules.construction.enabled} onClick={() => setMode('construction')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'construction' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
+            Kivitelezés
           </button>
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Projektadatok
@@ -113,6 +119,7 @@ export default function ProjectDrawer({
                     onModuleChange(key);
                     if (key === 'quote') setMode('quote');
                     if (key === 'contract') setMode('contract');
+                    if (key === 'construction') setMode('construction');
                   }}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}
                 >
@@ -212,6 +219,12 @@ export default function ProjectDrawer({
               onUploadSigned={onUploadSignedContract}
               onDownloadSigned={onDownloadSignedContract}
             />
+          )
+        ) : mode === 'construction' ? (
+          project.closed ? (
+            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">A lezárt projekt kivitelezése már nem módosítható.</div>
+          ) : (
+            <ConstructionEditor project={project} saving={saving} onRun={onConstructionAction} />
           )
         ) : (
           <form onSubmit={onSaveDetails} className="mt-6 space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">

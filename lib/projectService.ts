@@ -101,6 +101,7 @@ export interface Project {
   };
   quoteData?: QuoteData;
   contractData?: ContractData;
+  constructionData?: { phases: import('./constructionService').ConstructionPhase[]; startedAt?: unknown; finishedAt?: unknown };
   modules: Record<ModuleKey, ProjectModule>;
   createdAt: unknown;
   updatedAt: unknown;
@@ -307,6 +308,11 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     },
     quoteData: normalizeQuoteData(data.quoteData, code),
     contractData: normalizeContractData(data.contractData, code),
+    constructionData: data.constructionData && typeof data.constructionData === 'object' ? {
+      phases: Array.isArray((data.constructionData as { phases?: unknown }).phases) ? (data.constructionData as { phases: import('./constructionService').ConstructionPhase[] }).phases : [],
+      startedAt: (data.constructionData as { startedAt?: unknown }).startedAt,
+      finishedAt: (data.constructionData as { finishedAt?: unknown }).finishedAt,
+    } : { phases: [] },
     modules: {
       survey: withModuleDefaults(modules.survey, 'Folyamatban'),
       quote: withModuleDefaults(modules.quote, 'Intézendő'),

@@ -314,7 +314,7 @@ export default function Dashboard() {
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : 'module');
+    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadDetailsDraft(project);
@@ -590,6 +590,7 @@ export default function Dashboard() {
           onDownloadSignedContract={downloadSelectedSignedContract}
           onCloseProject={confirmCloseProject}
           onDismiss={() => setSelectedProject(null)}
+          onConstructionAction={(action, message) => { void runAction(async () => { await action(); setActionMessage(message); }); }}
         />
       )}
 
