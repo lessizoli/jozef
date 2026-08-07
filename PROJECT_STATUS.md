@@ -179,12 +179,13 @@ Ezek nem blokkolják az alaptermék elkészültét:
 
 ## Legutóbbi kiadási állapot
 
-- GitHub `main`: `d50ab8e` – Add construction workflow (#4)
+- GitHub `main`: `ec89aa9` – Add document library and permission matrix
 - Firestore rules: telepítve az `envision-cmr` projektbe
 - Storage rules: telepítve az `envision-cmr` projektbe
 - Lint: sikeres
 - Next.js production build: sikeres
 - Firebase Functions TypeScript build: sikeres
+- Jogosultsági Cloud Functionök: telepítve az `envision-cmr` projektbe
 
 ## Frissítési szabály
 
