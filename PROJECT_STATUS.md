@@ -6,23 +6,26 @@ Ez a fájl az Envision CRM fejlesztésének központi állapotlapja. Új fejlesz
 
 ## A projekt célja
 
-Egy egyszerűen kezelhető, többcéges projektmenedzser CRM létrehozása Next.js és Firebase alapokon. A rendszer egy projekt teljes életútját követi az első felméréstől a pénzügyi lezárásig.
+Egy egyszerűen kezelhető, többcéges ügyfél- és projektmenedzser létrehozása Next.js és Firebase alapokon. Az alaptermék az ügyfél kezelését és a munka teljes életútját követi a felméréstől a kivitelezés befejezéséig, az összes kapcsolódó szöveges, képi és dokumentumanyag rendezett tárolásával.
 
-A rendszer nem általános ERP. A fő folyamat öt modulból áll:
+A rendszer nem általános ERP és nem alapvetően pénzügyi program. Az alaptermék fő területei:
 
-1. Felmérés
-2. Ajánlat
-3. Szerződés
-4. Kivitelezés
-5. Pénzügy
+1. Ügyfélkezelés
+2. Felmérés
+3. Kivitelezés
+4. Befejezés és átadás
+5. Szövegek, képek és dokumentumok kezelése
+
+Az Ajánlat, Szerződés, Pénzügy, Raktár és más üzleti területek külön megrendelhető kiegészítő szolgáltatások. A már elkészült Ajánlat és Szerződés funkciók ennek megfelelően opcionális modulokként maradnak a rendszerben.
 
 ## Rögzített üzleti szabályok
 
-- A projektkártyán mind az öt modul megjelenik.
+- Az alapfolyamat az ügyfélkezelésből, Felmérésből, Kivitelezésből és Befejezésből áll.
+- A megrendelt kiegészítő modulok a projektkártyán megjelenhetnek, de nem részei kötelezően az alapterméknek.
 - A modul neve gombként működik, és megnyitja a hozzá tartozó kezelőfelületet.
 - Zöld: a modul elkészült, és az elkészülés dátuma jelenik meg.
 - Sárga: a modul folyamatban van vagy intézendő.
-- Piros: csúszás vagy fizetési késedelem van.
+- Piros: csúszás vagy más, figyelmet igénylő probléma van.
 - Szürke: a projekt még nem ért el ehhez a modulhoz, vagy a modul az adott projektnél nem elérhető.
 - Nincs általános „Kész” projektstátusz. A modul elkészülési dátuma jelzi a teljesítést.
 - A projektkód mellett a legutóbbi művelet jelenik meg a hozzá tartozó színnel.
@@ -36,12 +39,14 @@ A rendszer nem általános ERP. A fő folyamat öt modulból áll:
 | Ajánlat | Kiküldve, Elutasítva, Elfogadva |
 | Szerződés | Kiküldve, Aláírva |
 | Kivitelezés | Folyamatban, Befejezve |
-| Pénzügy | Számlázva, Fizetve, Késedelem |
+| Befejezés | Átadásra vár, Befejezve |
+| Pénzügy – kiegészítő | Számlázva, Fizetve, Késedelem |
 
 ### Előfizetés és projekt-snapshot
 
-- Az alapcsomagban csak a Felmérés és a Kivitelezés érhető el.
-- A többi modul látható, de inaktív és szürke.
+- Az alapcsomag tartalmazza az ügyfélkezelést, a Felmérést, a Kivitelezést, a Befejezést, valamint a kapcsolódó szövegek, képek és dokumentumok kezelését.
+- Az opcionális modulok csak akkor aktívak, ha az ügyfél megrendelte őket.
+- A nem megrendelt, de a felületen bemutatott kiegészítő modulok inaktívak és szürkék.
 - A projekt létrehozásakor el kell menteni az akkor elérhető modulokat.
 - Egy későbbi előfizetés-bővítés nem módosíthatja visszamenőleg a régi projekteket.
 - A bővítés után létrehozott projektek már az új modul-hozzáférést kapják.
@@ -55,60 +60,62 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Firebase bejelentkezés és céges felhasználói profilok
 - [x] Többcéges, companyId alapján leválasztott adatszerkezet
 - [x] Projektlista és projektkártyák
-- [x] Ötmodulos projektfolyamat és állapotszínezés
+- [x] Moduláris projektfolyamat és állapotszínezés
 - [x] Projekt legutóbbi műveletének megjelenítése
 - [x] Projektkártya gyorsműveletek
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
 - [x] Projektjegyzetek és képfeltöltés
-- [x] Ajánlat modul tételes kalkulációval
-- [x] Ajánlat PDF-generálás és e-mailes kiküldés
-- [x] Szerződés modul ajánlatadatok átvételével
-- [x] Szerződés PDF-generálás és e-mailes kiküldés
-- [x] Aláírt szerződés védett feltöltése és naplózása
-- [x] Kivitelezés automatikus indítása aláírt szerződés után
+- [x] Opcionális Ajánlat modul tételes kalkulációval
+- [x] Opcionális Ajánlat PDF-generálás és e-mailes kiküldés
+- [x] Opcionális Szerződés modul ajánlatadatok átvételével
+- [x] Opcionális Szerződés PDF-generálás és e-mailes kiküldés
+- [x] Opcionális aláírt szerződés védett feltöltése és naplózása
+- [x] Kivitelezés indítása az opcionális szerződésfolyamatból
 - [x] Kivitelezési munkafázisok
 - [x] Kivitelezési napló
 - [x] Védett helyszíni képek
 - [x] Kivitelezés indítása és befejezése
-- [x] Automatikus továbblépés a Pénzügy modulra
+- [x] Kivitelezés befejezési állapotának és dátumának rögzítése
 - [x] Firestore- és Storage-jogosultságok a fenti funkciókhoz
 
 ### Részben kész, ellenőrizendő
 
+- [ ] **Kritikus:** az új projekt jelenleg minden régi modult engedélyez; ezt az alapcsomag és a megvásárolt kiegészítők projekt-létrehozáskori snapshotjára kell cserélni
 - [ ] Az előfizetés szerinti modul-hozzáférés projekt-létrehozáskori snapshotjának teljes végponttól végpontig ellenőrzése
 - [ ] Régi, hiányos adatszerkezetű projektek visszafelé kompatibilis kezelése minden modulban
 - [ ] A teljes projektfolyamat kézi tesztje új projekttől a Kivitelezés befejezéséig
 - [ ] Mobilnézet és keskeny képernyős projektpanel teljes vizuális ellenőrzése
+- [ ] A Befejezés és átadás önálló alapmoduljának véglegesítése
+- [ ] Dokumentumok egységes, projekten és munkafázison belüli rendezése
 
 ## Következő mérföldkő
 
-### M5 – Pénzügy modul
+### M5 – Az alaptermék befejezési és dokumentumkezelési folyamata
 
 Ez a következő aktív fejlesztési feladat.
 
 Tervezett tartalom:
 
-- számla adatainak rögzítése;
-- számlaszám, kiállítási dátum és fizetési határidő;
-- nettó, ÁFA és bruttó összeg;
-- részfizetések kezelése;
-- státuszok: Számlázva, Fizetve, Késedelem;
-- késedelem automatikus felismerése a fizetési határidő alapján;
-- befizetés dátumának és rögzítőjének naplózása;
-- ajánlat és szerződés összegének automatikus átvétele;
-- pénzügyi összesítő a projektkártyán;
-- projekt lezárhatósága a pénzügyi folyamat befejezése után;
+- önálló Befejezés és átadás modul;
+- kivitelezés lezárási ellenőrzőlista;
+- átadás dátuma és felelőse;
+- átadási jegyzetek és ügyfél-visszaigazolás;
+- hibajegyek és utómunkák rögzítése;
+- szövegek, képek és dokumentumok modul és munkafázis szerinti rendezése;
+- dokumentumfeltöltés, előnézet, letöltés és jogosultságkezelés;
+- a projekt lezárhatóságának meghatározása az alapfolyamat befejezése alapján;
 - szükséges Firestore-szabályok és tesztek.
 
 ### A következő konkrét lépés
 
-1. A Pénzügy modul adatmodelljének rögzítése.
-2. A pénzügyi szerkesztő felület elkészítése.
-3. Státuszátmenetek és késedelemszámítás bekötése.
-4. Projektkártya és legutóbbi művelet frissítése.
-5. Jogosultságok, lint, build és kézi folyamatpróba.
+1. A csomagjogosultságok és a projekt-létrehozáskori modul-snapshot javítása, hogy az alapverzió ne aktiválja a kiegészítő modulokat.
+2. A Befejezés és átadás modul adatmodelljének rögzítése.
+3. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
+4. A befejezési ellenőrzőlista és átadási felület elkészítése.
+5. Projektkártya, elkészülési dátum és legutóbbi művelet frissítése.
+6. Jogosultságok, lint, build és teljes alapfolyamat-próba.
 
 ## Későbbi mérföldkövek
 
@@ -129,6 +136,16 @@ Tervezett tartalom:
 - mentési és visszaállítási terv;
 - éles deploy ellenőrzőlista;
 - felhasználói útmutató.
+
+### Opcionális, külön megrendelhető modulok
+
+Ezek nem blokkolják az alaptermék elkészültét:
+
+- Ajánlat – jelenleg már rendelkezik működő alapverzióval;
+- Szerződés – jelenleg már rendelkezik működő alapverzióval;
+- Pénzügy – későbbi külön kiegészítő szolgáltatás;
+- Raktár és készletkezelés – későbbi külön kiegészítő szolgáltatás;
+- további integrációk és vállalatspecifikus modulok.
 
 ## Fontos technikai helyek
 
