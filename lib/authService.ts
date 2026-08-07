@@ -1,17 +1,30 @@
 import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  User
+  signOut,
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { doc, getDoc } from 'firebase/firestore';
 
 // 1. Új cég és admin regisztrációja a Cloud Functionen keresztül
-export async function registerNewCompany(data: any) {
+type RegisterCompanyInput = {
+  email: string;
+  password: string;
+  companyName: string;
+  fullName: string;
+};
+
+type RegisterCompanyResult = {
+  success: boolean;
+  uid: string;
+};
+
+export async function registerNewCompany(data: RegisterCompanyInput) {
   const functionsInstance = getFunctions(undefined, 'europe-west1');
-  const registerCallable = httpsCallable(functionsInstance, 'registerTenant');
+  const registerCallable = httpsCallable<RegisterCompanyInput, RegisterCompanyResult>(
+    functionsInstance,
+    'registerTenant',
+  );
   const result = await registerCallable(data);
   return result.data;
 }

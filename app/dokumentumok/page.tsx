@@ -23,7 +23,10 @@ function readableSize(size?: number) {
 export default function ProjectDocumentsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
-  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const [attachmentState, setAttachmentState] = useState<{
+    projectId: string;
+    items: ProjectAttachment[];
+  }>({ projectId: '', items: [] });
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -34,13 +37,14 @@ export default function ProjectDocumentsPage() {
   }), []);
 
   useEffect(() => {
-    if (!projectId) {
-      setAttachments([]);
-      return;
-    }
+    if (!projectId) return;
 
-    return subscribeToProjectAttachments(projectId, setAttachments);
+    return subscribeToProjectAttachments(projectId, (items) => {
+      setAttachmentState({ projectId, items });
+    });
   }, [projectId]);
+
+  const attachments = attachmentState.projectId === projectId ? attachmentState.items : [];
 
   const project = useMemo(
     () => projects.find((item) => item.id === projectId) ?? null,

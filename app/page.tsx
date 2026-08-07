@@ -10,6 +10,8 @@ import InquiryDrawer from '@/components/dashboard/InquiryDrawer';
 import ProjectDrawer, { type ProjectDrawerMode } from '@/components/dashboard/ProjectDrawer';
 import ProjectList from '@/components/dashboard/ProjectList';
 import TeamManagement from '@/components/dashboard/TeamManagement';
+import PopupSettingsPanel from '@/components/dashboard/PopupSettingsPanel';
+import ManagedPopup from '@/components/ManagedPopup';
 import { getCalendarDays, moduleKeys } from '@/components/dashboard/dashboardConfig';
 import type {
   CalendarDraft,
@@ -33,6 +35,12 @@ import {
   updateProjectModuleStatus,
 } from '@/lib/projectService';
 import { downloadProjectQuote, saveProjectQuote, sendProjectQuote } from '@/lib/quoteService';
+import {
+  defaultPopupSettings,
+  savePopupSettings,
+  subscribeToPopupSettings,
+  type PopupSettings,
+} from '@/lib/popupService';
 import {
   createTeam,
   deleteTeam,
@@ -107,6 +115,7 @@ export default function Dashboard() {
   const [teams, setTeams] = useState<CompanyTeam[]>([]);
   const [invites, setInvites] = useState<CompanyInvite[]>([]);
   const [canManageTeam, setCanManageTeam] = useState(false);
+  const [popupSettings, setPopupSettings] = useState<PopupSettings>(defaultPopupSettings);
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
@@ -123,6 +132,7 @@ export default function Dashboard() {
         subscribeToMembers(context.companyId, setMembers),
         subscribeToTeams(context.companyId, setTeams),
         subscribeToInvites(context.companyId, setInvites),
+        subscribeToPopupSettings(context.companyId, setPopupSettings),
       );
     }).catch((error) => setActionError(errorMessage(error)));
     return () => {
@@ -371,6 +381,13 @@ export default function Dashboard() {
     return runAction(async () => { await deleteTeam(teamId); });
   }
 
+  function handlePopupSave(settings: PopupSettings) {
+    return runAction(async () => {
+      await savePopupSettings(settings);
+      setActionMessage('A popup beállításai elmentve.');
+    });
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <DashboardHeader
@@ -418,7 +435,7 @@ export default function Dashboard() {
             onToday={() => setCalendarMonth(new Date())}
             onOpenModule={openModule}
           />
-        ) : (
+        ) : view === 'team' ? (
           <TeamManagement
             members={members}
             teams={teams}
@@ -430,6 +447,14 @@ export default function Dashboard() {
             onTeamCreate={handleTeamCreate}
             onTeamUpdate={handleTeamUpdate}
             onTeamDelete={handleTeamDelete}
+          />
+        ) : (
+          <PopupSettingsPanel
+            key={popupSettings.version}
+            settings={popupSettings}
+            canManage={canManageTeam}
+            saving={saving}
+            onSave={handlePopupSave}
           />
         )}
       </div>
@@ -483,6 +508,7 @@ export default function Dashboard() {
         onClose={() => setShowCreate(false)}
         onSubmit={createProject}
       />
+      <ManagedPopup settings={popupSettings} />
     </main>
   );
 }
