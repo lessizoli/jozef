@@ -37,13 +37,6 @@ export default function DashboardHeader({ view, onViewChange, onCreate, onSignOu
           >
             Munkatársak
           </button>
-          <button
-            type="button"
-            onClick={() => onViewChange('popup')}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'popup' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-          >
-            Popup
-          </button>
           <button type="button" onClick={onCreate} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">
             + Új érdeklődés
           </button>

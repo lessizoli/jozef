@@ -49,6 +49,41 @@ export type QuoteData = {
   sentAt?: unknown;
 };
 
+export type SignedContractDocument = {
+  fileName: string;
+  storagePath: string;
+  downloadURL?: string;
+  contentType: string;
+  size: number;
+  uploadedAt?: unknown;
+  uploadedBy?: string;
+};
+
+export type ContractData = {
+  contractNumber: string;
+  issueDate: string;
+  contractorName: string;
+  contractorAddress: string;
+  contractorTaxNumber: string;
+  contractorRepresentative: string;
+  clientTaxNumber: string;
+  clientRepresentative: string;
+  workDescription: string;
+  grossAmount: number;
+  depositAmount: number;
+  paymentTerms: string;
+  startDate: string;
+  completionDate: string;
+  warrantyMonths: number;
+  additionalTerms: string;
+  updatedAt?: unknown;
+  sentAt?: unknown;
+  signedAt?: unknown;
+  signedByUid?: string;
+  signedByName?: string;
+  signedDocument?: SignedContractDocument;
+};
+
 export interface Project {
   id: string;
   companyId: string;
@@ -65,6 +100,7 @@ export interface Project {
     address: string;
   };
   quoteData?: QuoteData;
+  contractData?: ContractData;
   modules: Record<ModuleKey, ProjectModule>;
   createdAt: unknown;
   updatedAt: unknown;
@@ -202,6 +238,54 @@ function normalizeQuoteData(value: unknown, projectCode: string): QuoteData | un
   };
 }
 
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : '';
+}
+
+function normalizeSignedDocument(value: unknown): SignedContractDocument | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const data = value as Record<string, unknown>;
+  if (!data.storagePath) return undefined;
+  return {
+    fileName: stringValue(data.fileName),
+    storagePath: String(data.storagePath),
+    downloadURL: stringValue(data.downloadURL) || undefined,
+    contentType: stringValue(data.contentType),
+    size: numberOrZero(data.size),
+    uploadedAt: data.uploadedAt,
+    uploadedBy: stringValue(data.uploadedBy),
+  };
+}
+
+function normalizeContractData(value: unknown, projectCode: string): ContractData | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const data = value as Record<string, unknown>;
+  return {
+    contractNumber: stringValue(data.contractNumber) || `SZ-${projectCode}`,
+    issueDate: stringValue(data.issueDate),
+    contractorName: stringValue(data.contractorName),
+    contractorAddress: stringValue(data.contractorAddress),
+    contractorTaxNumber: stringValue(data.contractorTaxNumber),
+    contractorRepresentative: stringValue(data.contractorRepresentative),
+    clientTaxNumber: stringValue(data.clientTaxNumber),
+    clientRepresentative: stringValue(data.clientRepresentative),
+    workDescription: stringValue(data.workDescription),
+    grossAmount: numberOrZero(data.grossAmount),
+    depositAmount: numberOrZero(data.depositAmount),
+    paymentTerms: stringValue(data.paymentTerms),
+    startDate: stringValue(data.startDate),
+    completionDate: stringValue(data.completionDate),
+    warrantyMonths: numberOrZero(data.warrantyMonths),
+    additionalTerms: stringValue(data.additionalTerms),
+    updatedAt: data.updatedAt,
+    sentAt: data.sentAt,
+    signedAt: data.signedAt,
+    signedByUid: stringValue(data.signedByUid),
+    signedByName: stringValue(data.signedByName),
+    signedDocument: normalizeSignedDocument(data.signedDocument),
+  };
+}
+
 function normalizeProject(id: string, companyId: string, data: Record<string, unknown>): Project {
   const modules = (data.modules ?? {}) as Partial<Record<ModuleKey, ProjectModule>>;
   const code = typeof data.code === 'string' ? data.code : `PRJ-${id.slice(0, 6).toUpperCase()}`;
@@ -222,6 +306,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       address: '',
     },
     quoteData: normalizeQuoteData(data.quoteData, code),
+    contractData: normalizeContractData(data.contractData, code),
     modules: {
       survey: withModuleDefaults(modules.survey, 'Folyamatban'),
       quote: withModuleDefaults(modules.quote, 'Intézendő'),

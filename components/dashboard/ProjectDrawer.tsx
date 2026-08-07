@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
+import ContractEditor from './ContractEditor';
 import QuoteEditor from './QuoteEditor';
-import type { AssignmentOption, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
+import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
 
-export type ProjectDrawerMode = 'module' | 'quote' | 'details';
+export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'details';
 
 type Props = {
   project: Project;
@@ -14,18 +15,25 @@ type Props = {
   schedule: ScheduleDraft;
   details: ProjectDetailsDraft;
   quote: QuoteDraft;
+  contract: ContractDraft;
   saving: boolean;
   assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
   onScheduleChange: (schedule: ScheduleDraft) => void;
   onDetailsChange: (details: ProjectDetailsDraft) => void;
   onQuoteChange: (quote: QuoteDraft) => void;
+  onContractChange: (contract: ContractDraft) => void;
   onStatusChange: (status: string) => void;
   onSaveSchedule: (event: React.FormEvent<HTMLFormElement>) => void;
   onSaveDetails: (event: React.FormEvent<HTMLFormElement>) => void;
   onSaveQuote: () => void;
   onDownloadQuote: () => void;
   onSendQuote: () => void;
+  onSaveContract: () => void;
+  onDownloadContract: () => void;
+  onSendContract: () => void;
+  onUploadSignedContract: (file: File) => void;
+  onDownloadSignedContract: () => void;
   onCloseProject: () => void;
   onDismiss: () => void;
 };
@@ -38,18 +46,25 @@ export default function ProjectDrawer({
   schedule,
   details,
   quote,
+  contract,
   saving,
   assignmentOptions,
   onModuleChange,
   onScheduleChange,
   onDetailsChange,
   onQuoteChange,
+  onContractChange,
   onStatusChange,
   onSaveSchedule,
   onSaveDetails,
   onSaveQuote,
   onDownloadQuote,
   onSendQuote,
+  onSaveContract,
+  onDownloadContract,
+  onSendContract,
+  onUploadSignedContract,
+  onDownloadSignedContract,
   onCloseProject,
   onDismiss,
 }: Props) {
@@ -71,12 +86,15 @@ export default function ProjectDrawer({
           <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label="Bezárás">✕</button>
         </div>
 
-        <div className="mt-6 grid grid-cols-3 gap-2">
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <button type="button" onClick={() => setMode('module')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'module' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Folyamat kezelése
           </button>
           <button type="button" disabled={!project.modules.quote.enabled} onClick={() => setMode('quote')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'quote' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
             Ajánlat
+          </button>
+          <button type="button" disabled={!project.modules.contract.enabled} onClick={() => setMode('contract')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'contract' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
+            Szerződés
           </button>
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Projektadatok
@@ -94,6 +112,7 @@ export default function ProjectDrawer({
                   onClick={() => {
                     onModuleChange(key);
                     if (key === 'quote') setMode('quote');
+                    if (key === 'contract') setMode('contract');
                   }}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}
                 >
@@ -166,6 +185,32 @@ export default function ProjectDrawer({
               onSave={onSaveQuote}
               onDownload={onDownloadQuote}
               onSend={onSendQuote}
+            />
+          )
+        ) : mode === 'contract' ? (
+          project.closed ? (
+            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">
+              A lezárt projekt szerződése már nem módosítható.
+            </div>
+          ) : (
+            <ContractEditor
+              draft={contract}
+              clientName={project.client.name}
+              clientAddress={project.client.address}
+              clientEmail={project.client.email}
+              signedDocument={project.contractData?.signedDocument}
+              signed={Boolean(project.contractData?.signedAt)}
+              signedAt={project.contractData?.signedAt}
+              signedByName={project.contractData?.signedByName}
+              quoteAccepted={project.modules.quote.enabled === false || project.modules.quote.status === 'Elfogadva'}
+              hasSavedContract={Boolean(project.contractData?.contractNumber)}
+              saving={saving}
+              onChange={onContractChange}
+              onSave={onSaveContract}
+              onDownload={onDownloadContract}
+              onSend={onSendContract}
+              onUploadSigned={onUploadSignedContract}
+              onDownloadSigned={onDownloadSignedContract}
             />
           )
         ) : (
