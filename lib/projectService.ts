@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
-export type ModuleKey = 'survey' | 'quote' | 'contract' | 'construction' | 'finance';
+export type ModuleKey = 'survey' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance';
 
 export type ProjectModule = {
   enabled: boolean;
@@ -102,6 +102,7 @@ export interface Project {
   quoteData?: QuoteData;
   contractData?: ContractData;
   constructionData?: { phases: import('./constructionService').ConstructionPhase[]; startedAt?: unknown; finishedAt?: unknown };
+  completionData?: import('./completionService').CompletionData;
   moduleAccessSnapshot?: {
     plan: string;
     enabledModules: string[];
@@ -131,13 +132,14 @@ type CompanyModuleAccess = {
   enabledModules: string[];
 };
 
-const moduleOrder: ModuleKey[] = ['survey', 'quote', 'contract', 'construction', 'finance'];
+const moduleOrder: ModuleKey[] = ['survey', 'quote', 'contract', 'construction', 'completion', 'finance'];
 
 const moduleLabels: Record<ModuleKey, string> = {
   survey: 'Felmérés',
   quote: 'Ajánlat',
   contract: 'Szerződés',
   construction: 'Kivitelezés',
+  completion: 'Befejezés',
   finance: 'Pénzügy',
 };
 
@@ -149,6 +151,7 @@ const completedStatusByModule: Record<ModuleKey, string> = {
   quote: 'Elfogadva',
   contract: 'Aláírva',
   construction: 'Befejezve',
+  completion: 'Befejezve',
   finance: 'Fizetve',
 };
 
@@ -157,6 +160,7 @@ const startingStatuses: Record<ModuleKey, string> = {
   quote: 'Kiküldve',
   contract: 'Kiküldve',
   construction: 'Folyamatban',
+  completion: 'Átadásra vár',
   finance: 'Számlázva',
 };
 
@@ -203,9 +207,9 @@ function companyProjectDocument(companyId: string, projectId: string) {
   return doc(db, 'companies', companyId, 'projects', projectId);
 }
 
-function withModuleDefaults(module: ProjectModule | undefined, status: string): ProjectModule {
+function withModuleDefaults(module: ProjectModule | undefined, status: string, enabledDefault = true): ProjectModule {
   return {
-    enabled: module?.enabled ?? true,
+    enabled: module?.enabled ?? enabledDefault,
     status: module?.status ?? status,
     scheduledAt: module?.scheduledAt ?? null,
     scheduledTime: module?.scheduledTime ?? null,
@@ -338,6 +342,9 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       startedAt: (data.constructionData as { startedAt?: unknown }).startedAt,
       finishedAt: (data.constructionData as { finishedAt?: unknown }).finishedAt,
     } : { phases: [] },
+    completionData: data.completionData && typeof data.completionData === 'object'
+      ? data.completionData as import('./completionService').CompletionData
+      : undefined,
     moduleAccessSnapshot: data.moduleAccessSnapshot && typeof data.moduleAccessSnapshot === 'object' ? {
       plan: stringValue((data.moduleAccessSnapshot as { plan?: unknown }).plan),
       enabledModules: Array.isArray((data.moduleAccessSnapshot as { enabledModules?: unknown }).enabledModules)
@@ -350,6 +357,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       quote: withModuleDefaults(modules.quote, 'Intézendő'),
       contract: withModuleDefaults(modules.contract, 'Intézendő'),
       construction: withModuleDefaults(modules.construction, 'Intézendő'),
+      completion: withModuleDefaults(modules.completion, 'Intézendő', false),
       finance: withModuleDefaults(modules.finance, 'Intézendő'),
     },
     createdAt: data.createdAt,
@@ -421,6 +429,7 @@ export async function createNewInquiry(
       quote: { enabled: moduleEnabled('quote'), status: 'Intézendő', ...emptySchedule },
       contract: { enabled: moduleEnabled('contract'), status: 'Intézendő', ...emptySchedule },
       construction: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      completion: { enabled: true, status: 'Intézendő', ...emptySchedule },
       finance: { enabled: moduleEnabled('finance'), status: 'Intézendő', ...emptySchedule },
     },
     moduleAccessSnapshot: {

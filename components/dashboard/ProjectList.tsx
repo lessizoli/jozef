@@ -66,7 +66,7 @@ function ProjectCard({
       </div>
       <h2 className="mt-3 text-lg font-bold">{project.title}</h2>
       <p className="mt-1 text-sm text-slate-400">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
         {moduleKeys.map((key, index) => {
           const projectModule = project.modules[key];
           return (

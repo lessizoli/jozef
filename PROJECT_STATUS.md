@@ -83,6 +83,10 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Védett helyszíni képek
 - [x] Kivitelezés indítása és befejezése
 - [x] Kivitelezés befejezési állapotának és dátumának rögzítése
+- [x] Önálló Befejezés és átadás alapmodul
+- [x] Átadási ellenőrzőlista, dátum, felelős és ügyfél-visszaigazolás
+- [x] Hibák, utómunkák és átadási jegyzetek rögzítése
+- [x] Projekt lezárhatósága a Befejezés modul után
 - [x] Firestore- és Storage-jogosultságok a fenti funkciókhoz
 
 ### Részben kész, ellenőrizendő
@@ -91,7 +95,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [ ] Régi, hiányos adatszerkezetű projektek visszafelé kompatibilis kezelése minden modulban
 - [ ] A teljes projektfolyamat kézi tesztje új projekttől a Kivitelezés befejezéséig
 - [ ] Mobilnézet és keskeny képernyős projektpanel teljes vizuális ellenőrzése
-- [ ] A Befejezés és átadás önálló alapmoduljának véglegesítése
+- [ ] A Befejezés és átadás modul teljes kézi végponttól végpontig tesztje
 - [ ] Dokumentumok egységes, projekten és munkafázison belüli rendezése
 
 ## Következő mérföldkő
@@ -114,10 +118,10 @@ Tervezett tartalom:
 
 ### A következő konkrét lépés
 
-1. A Befejezés és átadás modul adatmodelljének rögzítése.
-2. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
-3. A befejezési ellenőrzőlista és átadási felület elkészítése.
-4. Projektkártya, elkészülési dátum és legutóbbi művelet frissítése.
+1. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
+2. Dokumentumok projekt-, modul- és munkafázis szerinti rendezése.
+3. Dokumentumfeltöltés, előnézet és letöltés egységesítése.
+4. Cégen belüli szerepkör- és jogosultságtáblák megvalósítása.
 5. Jogosultságok, lint, build és teljes alapfolyamat-próba.
 
 ## Későbbi mérföldkövek
@@ -161,6 +165,7 @@ Ezek nem blokkolják az alaptermék elkészültét:
 | Ajánlat | `lib/quoteService.ts`, `components/dashboard/QuoteEditor.tsx` |
 | Szerződés | `lib/contractService.ts`, `components/dashboard/ContractEditor.tsx` |
 | Kivitelezés | `lib/constructionService.ts`, `components/dashboard/ConstructionEditor.tsx` |
+| Befejezés és átadás | `lib/completionService.ts`, `components/dashboard/CompletionEditor.tsx` |
 | Firestore-jogosultságok | `firestore.rules` |
 | Storage-jogosultságok | `storage.rules` |
 | Firebase-konfiguráció | `firebase.json`, `.firebaserc` |

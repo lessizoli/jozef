@@ -314,7 +314,7 @@ export default function Dashboard() {
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : 'module');
+    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadDetailsDraft(project);

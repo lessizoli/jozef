@@ -45,9 +45,9 @@ export async function setConstructionRunning(projectId: string) {
   const { companyId } = await context();
   await updateDoc(doc(db, 'companies', companyId, 'projects', projectId), { 'modules.construction.status': 'Folyamatban', 'modules.construction.delayed': false, 'modules.construction.completedAt': null, 'constructionData.startedAt': serverTimestamp(), status: 'Folyamatban', closed: false, lastAction: 'Kivitelezés elindítva', updatedAt: serverTimestamp() });
 }
-export async function finishConstruction(projectId: string, financeEnabled: boolean) {
+export async function finishConstruction(projectId: string, completionEnabled: boolean) {
   const { companyId } = await context();
-  const updates: Record<string, unknown> = { 'modules.construction.status': 'Befejezve', 'modules.construction.delayed': false, 'modules.construction.completedAt': serverTimestamp(), 'constructionData.finishedAt': serverTimestamp(), status: financeEnabled ? 'Folyamatban' : 'Lezárható', lastAction: financeEnabled ? 'Kivitelezés befejezve, Pénzügy elindítva' : 'Kivitelezés befejezve, a projekt lezárható', updatedAt: serverTimestamp() };
-  if (financeEnabled) { updates['modules.finance.status'] = 'Számlázva'; updates['modules.finance.delayed'] = false; updates['modules.finance.completedAt'] = null; }
+  const updates: Record<string, unknown> = { 'modules.construction.status': 'Befejezve', 'modules.construction.delayed': false, 'modules.construction.completedAt': serverTimestamp(), 'constructionData.finishedAt': serverTimestamp(), status: completionEnabled ? 'Folyamatban' : 'Lezárható', lastAction: completionEnabled ? 'Kivitelezés befejezve, átadás elindítva' : 'Kivitelezés befejezve, a projekt lezárható', updatedAt: serverTimestamp() };
+  if (completionEnabled) { updates['modules.completion.status'] = 'Átadásra vár'; updates['modules.completion.delayed'] = false; updates['modules.completion.completedAt'] = null; }
   await updateDoc(doc(db, 'companies', companyId, 'projects', projectId), updates);
 }
