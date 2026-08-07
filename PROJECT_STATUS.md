@@ -58,6 +58,9 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 ### Elkészült
 
 - [x] Firebase bejelentkezés és céges felhasználói profilok
+- [x] Önálló cégregisztráció SuperAdmin közreműködése nélkül
+- [x] Az első felhasználó automatikus `company_admin` jogosultsága
+- [x] Új cég alapcsomagjának és engedélyezett moduljainak rögzítése
 - [x] Többcéges, companyId alapján leválasztott adatszerkezet
 - [x] Projektlista és projektkártyák
 - [x] Moduláris projektfolyamat és állapotszínezés

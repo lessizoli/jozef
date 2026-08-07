@@ -10,6 +10,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const publicPath = pathname === '/login' || pathname === '/register';
 
   useEffect(() => {
     return onAuthStateChanged(auth, (currentUser) => {
@@ -21,15 +22,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    if (!user && pathname !== '/login') {
+    if (!user && !publicPath) {
       router.replace('/login');
       return;
     }
 
-    if (user && pathname === '/login') {
+    if (user && publicPath) {
       router.replace('/');
     }
-  }, [loading, pathname, router, user]);
+  }, [loading, publicPath, router, user]);
 
   if (loading) {
     return (
@@ -39,12 +40,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user && pathname !== '/login') return null;
-  if (user && pathname === '/login') return null;
+  if (!user && !publicPath) return null;
+  if (user && publicPath) return null;
 
   return (
     <>
-      {user && pathname !== '/login' && (
+      {user && !publicPath && (
         <button
           type="button"
           onClick={() => void signOut(auth)}

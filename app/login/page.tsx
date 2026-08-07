@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
+import Link from 'next/link';
 
 function getLoginError(code?: string) {
   if (code === 'auth/invalid-credential') return 'Hibás e-mail-cím vagy jelszó.';
@@ -83,6 +84,12 @@ export default function LoginPage() {
             {submitting ? 'Bejelentkezés…' : 'Belépés'}
           </button>
         </form>
+        <div className="mt-6 border-t border-slate-800 pt-5 text-center">
+          <p className="text-sm text-slate-400">Új cégként szeretnéd használni a rendszert?</p>
+          <Link href="/register" className="mt-2 inline-block text-sm font-semibold text-sky-400 hover:text-sky-300">
+            Új cég és céges admin létrehozása
+          </Link>
+        </div>
       </section>
     </main>
   );

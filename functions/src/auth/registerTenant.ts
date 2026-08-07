@@ -5,10 +5,16 @@ import { getFirestore } from 'firebase-admin/firestore';
 const db = getFirestore();
 
 export const registerTenant = onCall(async (request) => {
-  const { email, password, companyName, fullName } = request.data;
+  const email = String(request.data?.email ?? '').trim().toLowerCase();
+  const password = String(request.data?.password ?? '');
+  const companyName = String(request.data?.companyName ?? '').trim();
+  const fullName = String(request.data?.fullName ?? '').trim();
   
   if (!email || !password || !companyName || !fullName) {
     throw new HttpsError('invalid-argument', 'Minden mező kitöltése kötelező.');
+  }
+  if (password.length < 8) {
+    throw new HttpsError('invalid-argument', 'A jelszó legalább 8 karakter hosszú legyen.');
   }
 
   try {
@@ -26,6 +32,8 @@ export const registerTenant = onCall(async (request) => {
     // 3. Cég dokumentum elmentése
     await companyRef.set({
       name: companyName,
+      plan: 'basic',
+      enabledModules: ['survey', 'construction', 'completion', 'files'],
       createdAt: new Date(),
     });
 
