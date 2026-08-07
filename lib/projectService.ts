@@ -102,6 +102,11 @@ export interface Project {
   quoteData?: QuoteData;
   contractData?: ContractData;
   constructionData?: { phases: import('./constructionService').ConstructionPhase[]; startedAt?: unknown; finishedAt?: unknown };
+  moduleAccessSnapshot?: {
+    plan: string;
+    enabledModules: string[];
+    capturedAt?: unknown;
+  };
   modules: Record<ModuleKey, ProjectModule>;
   createdAt: unknown;
   updatedAt: unknown;
@@ -119,6 +124,11 @@ type UserProfile = {
   companyId?: string | null;
   role?: string;
   active?: boolean;
+};
+
+type CompanyModuleAccess = {
+  plan: string;
+  enabledModules: string[];
 };
 
 const moduleOrder: ModuleKey[] = ['survey', 'quote', 'contract', 'construction', 'finance'];
@@ -168,6 +178,21 @@ async function getAuthenticatedCompanyId(): Promise<string> {
   const profile = await getAuthenticatedProfile();
   if (!profile.companyId) throw new Error('A felhasználóhoz nincs companyId rendelve.');
   return profile.companyId;
+}
+
+async function getCompanyModuleAccess(companyId: string): Promise<CompanyModuleAccess> {
+  const snapshot = await getDoc(doc(db, 'companies', companyId));
+  if (!snapshot.exists()) throw new Error('A cég adatai nem találhatók.');
+  const data = snapshot.data();
+  const configuredModules = Array.isArray(data.enabledModules)
+    ? data.enabledModules.filter((item): item is string => typeof item === 'string')
+    : null;
+
+  // A beállítás nélküli, korábban létrehozott cégeknél megőrizzük a régi működést.
+  return {
+    plan: typeof data.plan === 'string' ? data.plan : 'legacy',
+    enabledModules: configuredModules ?? [...moduleOrder],
+  };
 }
 
 function companyProjectsCollection(companyId: string) {
@@ -313,6 +338,13 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       startedAt: (data.constructionData as { startedAt?: unknown }).startedAt,
       finishedAt: (data.constructionData as { finishedAt?: unknown }).finishedAt,
     } : { phases: [] },
+    moduleAccessSnapshot: data.moduleAccessSnapshot && typeof data.moduleAccessSnapshot === 'object' ? {
+      plan: stringValue((data.moduleAccessSnapshot as { plan?: unknown }).plan),
+      enabledModules: Array.isArray((data.moduleAccessSnapshot as { enabledModules?: unknown }).enabledModules)
+        ? (data.moduleAccessSnapshot as { enabledModules: unknown[] }).enabledModules.filter((item): item is string => typeof item === 'string')
+        : [],
+      capturedAt: (data.moduleAccessSnapshot as { capturedAt?: unknown }).capturedAt,
+    } : undefined,
     modules: {
       survey: withModuleDefaults(modules.survey, 'Folyamatban'),
       quote: withModuleDefaults(modules.quote, 'Intézendő'),
@@ -365,8 +397,10 @@ export async function createNewInquiry(
   clientPhone: string,
 ) {
   const companyId = await getAuthenticatedCompanyId();
+  const moduleAccess = await getCompanyModuleAccess(companyId);
   const code = `PRJ-${Date.now().toString().slice(-6)}`;
   const emptySchedule = { scheduledAt: null, scheduledTime: null, assignedTo: null, assigneeId: null, assigneeType: null };
+  const moduleEnabled = (moduleKey: ModuleKey) => moduleAccess.enabledModules.includes(moduleKey);
 
   const documentReference = await addDoc(companyProjectsCollection(companyId), {
     companyId,
@@ -384,10 +418,15 @@ export async function createNewInquiry(
     },
     modules: {
       survey: { enabled: true, status: 'Folyamatban', ...emptySchedule },
-      quote: { enabled: true, status: 'Intézendő', ...emptySchedule },
-      contract: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      quote: { enabled: moduleEnabled('quote'), status: 'Intézendő', ...emptySchedule },
+      contract: { enabled: moduleEnabled('contract'), status: 'Intézendő', ...emptySchedule },
       construction: { enabled: true, status: 'Intézendő', ...emptySchedule },
-      finance: { enabled: true, status: 'Intézendő', ...emptySchedule },
+      finance: { enabled: moduleEnabled('finance'), status: 'Intézendő', ...emptySchedule },
+    },
+    moduleAccessSnapshot: {
+      plan: moduleAccess.plan,
+      enabledModules: moduleAccess.enabledModules,
+      capturedAt: serverTimestamp(),
     },
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

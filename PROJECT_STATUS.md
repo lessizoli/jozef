@@ -61,6 +61,8 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Önálló cégregisztráció SuperAdmin közreműködése nélkül
 - [x] Az első felhasználó automatikus `company_admin` jogosultsága
 - [x] Új cég alapcsomagjának és engedélyezett moduljainak rögzítése
+- [x] Projekt-létrehozáskori csomag- és modul-hozzáférési snapshot
+- [x] Kiegészítő modulok alapértelmezett inaktiválása az alapcsomagos új projekteknél
 - [x] Többcéges, companyId alapján leválasztott adatszerkezet
 - [x] Projektlista és projektkártyák
 - [x] Moduláris projektfolyamat és állapotszínezés
@@ -85,7 +87,6 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 
 ### Részben kész, ellenőrizendő
 
-- [ ] **Kritikus:** az új projekt jelenleg minden régi modult engedélyez; ezt az alapcsomag és a megvásárolt kiegészítők projekt-létrehozáskori snapshotjára kell cserélni
 - [ ] Az előfizetés szerinti modul-hozzáférés projekt-létrehozáskori snapshotjának teljes végponttól végpontig ellenőrzése
 - [ ] Régi, hiányos adatszerkezetű projektek visszafelé kompatibilis kezelése minden modulban
 - [ ] A teljes projektfolyamat kézi tesztje új projekttől a Kivitelezés befejezéséig
@@ -113,12 +114,11 @@ Tervezett tartalom:
 
 ### A következő konkrét lépés
 
-1. A csomagjogosultságok és a projekt-létrehozáskori modul-snapshot javítása, hogy az alapverzió ne aktiválja a kiegészítő modulokat.
-2. A Befejezés és átadás modul adatmodelljének rögzítése.
-3. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
-4. A befejezési ellenőrzőlista és átadási felület elkészítése.
-5. Projektkártya, elkészülési dátum és legutóbbi művelet frissítése.
-6. Jogosultságok, lint, build és teljes alapfolyamat-próba.
+1. A Befejezés és átadás modul adatmodelljének rögzítése.
+2. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
+3. A befejezési ellenőrzőlista és átadási felület elkészítése.
+4. Projektkártya, elkészülési dátum és legutóbbi művelet frissítése.
+5. Jogosultságok, lint, build és teljes alapfolyamat-próba.
 
 ## Későbbi mérföldkövek
 
