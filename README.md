@@ -1,3 +1,7 @@
+# Envision CRM
+
+Az aktuális termékcél, a rögzített üzleti szabályok, a kész funkciók és a következő fejlesztési lépés a [PROJECT_STATUS.md](./PROJECT_STATUS.md) fájlban található.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
