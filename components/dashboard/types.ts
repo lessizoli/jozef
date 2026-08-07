@@ -1,7 +1,8 @@
 import type { ModuleKey, Project } from '@/lib/projectService';
 import type { QuoteDraft } from '@/lib/quoteService';
+import type { ContractDraft } from '@/lib/contractService';
 
-export type DashboardView = 'projects' | 'calendar' | 'team' | 'popup';
+export type DashboardView = 'projects' | 'calendar' | 'team';
 
 export type InquiryForm = {
   title: string;
@@ -45,4 +46,4 @@ export type AssignmentOption = {
   label: string;
 };
 
-export type { QuoteDraft };
+export type { ContractDraft, QuoteDraft };

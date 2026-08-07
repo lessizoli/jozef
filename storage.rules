@@ -32,6 +32,20 @@ service firebase.storage {
       allow delete: if belongsTo(companyId);
     }
 
+    match /companies/{companyId}/projects/{projectId}/signed-contracts/{fileName} {
+      allow read: if false;
+
+      allow create: if belongsTo(companyId)
+        && request.resource.size < 15 * 1024 * 1024
+        && request.resource.contentType in [
+          'application/pdf',
+          'image/jpeg',
+          'image/png'
+        ];
+
+      allow update, delete: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

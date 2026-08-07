@@ -10,14 +10,13 @@ import InquiryDrawer from '@/components/dashboard/InquiryDrawer';
 import ProjectDrawer, { type ProjectDrawerMode } from '@/components/dashboard/ProjectDrawer';
 import ProjectList from '@/components/dashboard/ProjectList';
 import TeamManagement from '@/components/dashboard/TeamManagement';
-import PopupSettingsPanel from '@/components/dashboard/PopupSettingsPanel';
-import ManagedPopup from '@/components/ManagedPopup';
 import { getCalendarDays, moduleKeys } from '@/components/dashboard/dashboardConfig';
 import type {
   CalendarDraft,
   CalendarEvent,
   AssignmentOption,
   DashboardView,
+  ContractDraft,
   InquiryForm,
   ProjectDetailsDraft,
   QuoteDraft,
@@ -36,11 +35,12 @@ import {
 } from '@/lib/projectService';
 import { downloadProjectQuote, saveProjectQuote, sendProjectQuote } from '@/lib/quoteService';
 import {
-  defaultPopupSettings,
-  savePopupSettings,
-  subscribeToPopupSettings,
-  type PopupSettings,
-} from '@/lib/popupService';
+  downloadProjectContract,
+  downloadSignedContract,
+  saveProjectContract,
+  sendProjectContract,
+  uploadSignedContract,
+} from '@/lib/contractService';
 import {
   createTeam,
   deleteTeam,
@@ -89,6 +89,39 @@ function createEmptyQuote(project: Project): QuoteDraft {
   };
 }
 
+function createEmptyContract(project: Project, defaults?: Project['contractData']): ContractDraft {
+  const issueDate = new Date();
+  const startDate = new Date(issueDate);
+  startDate.setDate(startDate.getDate() + 14);
+  const completionDate = new Date(startDate);
+  completionDate.setDate(completionDate.getDate() + 30);
+  const quoteDescription = project.quoteData?.items
+    .map((item) => item.description)
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    contractNumber: `SZ-${project.code}`,
+    issueDate: dateInputValue(issueDate),
+    contractorName: defaults?.contractorName ?? '',
+    contractorAddress: defaults?.contractorAddress ?? '',
+    contractorTaxNumber: defaults?.contractorTaxNumber ?? '',
+    contractorRepresentative: defaults?.contractorRepresentative ?? '',
+    clientTaxNumber: '',
+    clientRepresentative: '',
+    workDescription: quoteDescription
+      ? `${project.title}: ${quoteDescription}`
+      : project.title,
+    grossAmount: project.quoteData?.grossTotal ?? 0,
+    depositAmount: 0,
+    paymentTerms: project.quoteData?.note || 'A vállalkozói díj a teljesítést követően, számla alapján fizetendő.',
+    startDate: dateInputValue(startDate),
+    completionDate: dateInputValue(completionDate),
+    warrantyMonths: 12,
+    additionalTerms: '',
+  };
+}
+
 type DrawerIntent = ProjectDrawerMode | 'close';
 
 function errorMessage(error: unknown) {
@@ -103,6 +136,7 @@ export default function Dashboard() {
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft>(emptySchedule);
   const [detailsDraft, setDetailsDraft] = useState<ProjectDetailsDraft>(emptyDetails);
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
+  const [contractDraft, setContractDraft] = useState<ContractDraft | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -115,7 +149,6 @@ export default function Dashboard() {
   const [teams, setTeams] = useState<CompanyTeam[]>([]);
   const [invites, setInvites] = useState<CompanyInvite[]>([]);
   const [canManageTeam, setCanManageTeam] = useState(false);
-  const [popupSettings, setPopupSettings] = useState<PopupSettings>(defaultPopupSettings);
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
@@ -132,7 +165,6 @@ export default function Dashboard() {
         subscribeToMembers(context.companyId, setMembers),
         subscribeToTeams(context.companyId, setTeams),
         subscribeToInvites(context.companyId, setInvites),
-        subscribeToPopupSettings(context.companyId, setPopupSettings),
       );
     }).catch((error) => setActionError(errorMessage(error)));
     return () => {
@@ -256,14 +288,38 @@ export default function Dashboard() {
     } : createEmptyQuote(project));
   }
 
+  function loadContractDraft(project: Project) {
+    const contract = project.contractData;
+    const companyDefaults = projects.find((item) => item.contractData?.contractorName)?.contractData;
+    setContractDraft(contract ? {
+      contractNumber: contract.contractNumber,
+      issueDate: contract.issueDate,
+      contractorName: contract.contractorName,
+      contractorAddress: contract.contractorAddress,
+      contractorTaxNumber: contract.contractorTaxNumber,
+      contractorRepresentative: contract.contractorRepresentative,
+      clientTaxNumber: contract.clientTaxNumber,
+      clientRepresentative: contract.clientRepresentative,
+      workDescription: contract.workDescription,
+      grossAmount: contract.grossAmount,
+      depositAmount: contract.depositAmount,
+      paymentTerms: contract.paymentTerms,
+      startDate: contract.startDate,
+      completionDate: contract.completionDate,
+      warrantyMonths: contract.warrantyMonths,
+      additionalTerms: contract.additionalTerms,
+    } : createEmptyContract(project, companyDefaults));
+  }
+
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent(key === 'quote' ? 'quote' : 'module');
+    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadDetailsDraft(project);
     loadQuoteDraft(project);
+    loadContractDraft(project);
     setSelectedProject(project);
   }
 
@@ -272,6 +328,7 @@ export default function Dashboard() {
     setDrawerIntent('details');
     loadDetailsDraft(project);
     loadQuoteDraft(project);
+    loadContractDraft(project);
     setSelectedProject(project);
   }
 
@@ -280,6 +337,7 @@ export default function Dashboard() {
     setDrawerIntent('close');
     loadDetailsDraft(project);
     loadQuoteDraft(project);
+    loadContractDraft(project);
     setSelectedProject(project);
   }
 
@@ -312,6 +370,49 @@ export default function Dashboard() {
       await saveProjectQuote(selectedProject.id, quoteDraft);
       await sendProjectQuote(selectedProject.id);
       setActionMessage(`Az ajánlat elküldve: ${selectedProject.client.email}`);
+    });
+  }
+
+  async function saveSelectedContract() {
+    if (!selectedProject || !contractDraft) return;
+    await runAction(async () => {
+      await saveProjectContract(selectedProject.id, contractDraft);
+      setActionMessage('A szerződés mentve.');
+    });
+  }
+
+  async function downloadSelectedContract() {
+    if (!selectedProject || !contractDraft) return;
+    await runAction(async () => {
+      await saveProjectContract(selectedProject.id, contractDraft);
+      await downloadProjectContract(selectedProject.id);
+      setActionMessage('A szerződés PDF elkészült és letöltődött.');
+    });
+  }
+
+  async function sendSelectedContract() {
+    if (!selectedProject || !contractDraft) return;
+    await runAction(async () => {
+      await saveProjectContract(selectedProject.id, contractDraft);
+      await sendProjectContract(selectedProject.id);
+      setActionMessage(`A szerződés elküldve: ${selectedProject.client.email}`);
+    });
+  }
+
+  async function uploadSelectedSignedContract(file: File) {
+    if (!selectedProject) return;
+    if (!window.confirm('A feltöltés után a szerződés Aláírva állapotú lesz, és elindul a Kivitelezés. Folytatod?')) return;
+    await runAction(async () => {
+      await uploadSignedContract(selectedProject, file);
+      setActionMessage('Az aláírt szerződés feltöltve, a Kivitelezés elindult.');
+    });
+  }
+
+  async function downloadSelectedSignedContract() {
+    if (!selectedProject?.contractData?.signedDocument) return;
+    await runAction(async () => {
+      await downloadSignedContract(selectedProject.id);
+      setActionMessage('Az aláírt szerződés letöltődött.');
     });
   }
 
@@ -381,13 +482,6 @@ export default function Dashboard() {
     return runAction(async () => { await deleteTeam(teamId); });
   }
 
-  function handlePopupSave(settings: PopupSettings) {
-    return runAction(async () => {
-      await savePopupSettings(settings);
-      setActionMessage('A popup beállításai elmentve.');
-    });
-  }
-
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <DashboardHeader
@@ -435,7 +529,7 @@ export default function Dashboard() {
             onToday={() => setCalendarMonth(new Date())}
             onOpenModule={openModule}
           />
-        ) : view === 'team' ? (
+        ) : (
           <TeamManagement
             members={members}
             teams={teams}
@@ -447,14 +541,6 @@ export default function Dashboard() {
             onTeamCreate={handleTeamCreate}
             onTeamUpdate={handleTeamUpdate}
             onTeamDelete={handleTeamDelete}
-          />
-        ) : (
-          <PopupSettingsPanel
-            key={popupSettings.version}
-            settings={popupSettings}
-            canManage={canManageTeam}
-            saving={saving}
-            onSave={handlePopupSave}
           />
         )}
       </div>
@@ -473,28 +559,35 @@ export default function Dashboard() {
         />
       )}
 
-      {selectedProject && quoteDraft && (
+      {selectedProject && quoteDraft && contractDraft && (
         <ProjectDrawer
           key={`${selectedProject.id}-${drawerIntent}`}
           project={selectedProject}
           selectedModule={selectedModule}
-          initialMode={drawerIntent === 'module' ? 'module' : 'details'}
+          initialMode={drawerIntent === 'close' ? 'details' : drawerIntent}
           initialConfirmClose={drawerIntent === 'close'}
           schedule={scheduleDraft}
           details={detailsDraft}
           quote={quoteDraft}
+          contract={contractDraft}
           saving={saving}
           assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}
           onScheduleChange={setScheduleDraft}
           onDetailsChange={setDetailsDraft}
           onQuoteChange={setQuoteDraft}
+          onContractChange={setContractDraft}
           onStatusChange={changeModuleStatus}
           onSaveSchedule={saveSelectedSchedule}
           onSaveDetails={saveProjectDetails}
           onSaveQuote={saveSelectedQuote}
           onDownloadQuote={downloadSelectedQuote}
           onSendQuote={sendSelectedQuote}
+          onSaveContract={saveSelectedContract}
+          onDownloadContract={downloadSelectedContract}
+          onSendContract={sendSelectedContract}
+          onUploadSignedContract={uploadSelectedSignedContract}
+          onDownloadSignedContract={downloadSelectedSignedContract}
           onCloseProject={confirmCloseProject}
           onDismiss={() => setSelectedProject(null)}
         />
@@ -508,7 +601,6 @@ export default function Dashboard() {
         onClose={() => setShowCreate(false)}
         onSubmit={createProject}
       />
-      <ManagedPopup settings={popupSettings} />
     </main>
   );
 }
