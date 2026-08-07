@@ -11,7 +11,7 @@ const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
 const allowedRoles = ['company_admin', 'project_manager', 'surveyor', 'installer', 'finance'] as const;
 
-async function requireCompanyAdmin(uid?: string) {
+async function requireCompanyPermission(uid: string | undefined, permission: 'manageMembers') {
   if (!uid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');
   const snapshot = await db.doc(`users/${uid}`).get();
   const profile = snapshot.data();
@@ -19,7 +19,10 @@ async function requireCompanyAdmin(uid?: string) {
     throw new HttpsError('permission-denied', 'A felhasználói profil nem aktív.');
   }
   if (!['company_admin', 'admin', 'superadmin'].includes(profile.role)) {
-    throw new HttpsError('permission-denied', 'Ehhez céges adminisztrátori jogosultság szükséges.');
+    const settings = await db.doc(`companies/${profile.companyId}/settings/permissions`).get();
+    if (settings.data()?.roles?.[profile.role]?.[permission] !== true) {
+      throw new HttpsError('permission-denied', 'Ehhez nincs céges jogosultságod.');
+    }
   }
   return { companyId: String(profile.companyId), role: String(profile.role) };
 }
@@ -31,7 +34,7 @@ function validateRole(role: unknown): asserts role is typeof allowedRoles[number
 }
 
 export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP_HOST] }, async (request) => {
-  const { companyId } = await requireCompanyAdmin(request.auth?.uid);
+  const { companyId } = await requireCompanyPermission(request.auth?.uid, 'manageMembers');
   const fullName = typeof request.data?.fullName === 'string' ? request.data.fullName.trim() : '';
   const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
   const role = request.data?.role;
@@ -107,7 +110,7 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
 
 export const updateCompanyMember = onCall(async (request) => {
   const callerUid = request.auth?.uid;
-  const { companyId } = await requireCompanyAdmin(callerUid);
+  const { companyId } = await requireCompanyPermission(callerUid, 'manageMembers');
   const uid = typeof request.data?.uid === 'string' ? request.data.uid : '';
   const active = request.data?.active;
   const role = request.data?.role;

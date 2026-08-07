@@ -72,6 +72,9 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
 - [x] Projektjegyzetek és képfeltöltés
+- [x] Egységes projekt-dokumentumtár jegyzetekhez, képekhez és általános dokumentumokhoz
+- [x] Dokumentumok modul- és kivitelezési munkafázis szerinti rendezése és szűrése
+- [x] Védett dokumentum-megnyitás és letöltés
 - [x] Opcionális Ajánlat modul tételes kalkulációval
 - [x] Opcionális Ajánlat PDF-generálás és e-mailes kiküldés
 - [x] Opcionális Szerződés modul ajánlatadatok átvételével
@@ -88,6 +91,8 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Hibák, utómunkák és átadási jegyzetek rögzítése
 - [x] Projekt lezárhatósága a Befejezés modul után
 - [x] Firestore- és Storage-jogosultságok a fenti funkciókhoz
+- [x] Cégenként szerkeszthető szerepkör-jogosultsági tábla
+- [x] Projekt-, dokumentum-, csapat- és munkatárs-műveletek szerveroldali jogosultság-ellenőrzése
 
 ### Részben kész, ellenőrizendő
 
@@ -96,7 +101,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [ ] A teljes projektfolyamat kézi tesztje új projekttől a Kivitelezés befejezéséig
 - [ ] Mobilnézet és keskeny képernyős projektpanel teljes vizuális ellenőrzése
 - [ ] A Befejezés és átadás modul teljes kézi végponttól végpontig tesztje
-- [ ] Dokumentumok egységes, projekten és munkafázison belüli rendezése
+- [ ] Dokumentumtár teljes kézi tesztje több szerepkörrel és fájltípussal
 
 ## Következő mérföldkő
 
@@ -118,11 +123,11 @@ Tervezett tartalom:
 
 ### A következő konkrét lépés
 
-1. A jelenlegi képek, jegyzetek és szerződésdokumentumok egységes dokumentumkezelési modelljének megtervezése.
-2. Dokumentumok projekt-, modul- és munkafázis szerinti rendezése.
-3. Dokumentumfeltöltés, előnézet és letöltés egységesítése.
-4. Cégen belüli szerepkör- és jogosultságtáblák megvalósítása.
-5. Jogosultságok, lint, build és teljes alapfolyamat-próba.
+1. Az alapfolyamat és a modul-snapshot teljes kézi tesztje új céggel.
+2. Dokumentumtár és jogosultsági mátrix kézi tesztje minden szerepkörrel.
+3. Régi projektek visszafelé kompatibilitásának ellenőrzése.
+4. Mobilnézet és hibavisszajelzések egységesítése.
+5. Éles használati ellenőrzőlista elkészítése.
 
 ## Későbbi mérföldkövek
 
@@ -166,6 +171,8 @@ Ezek nem blokkolják az alaptermék elkészültét:
 | Szerződés | `lib/contractService.ts`, `components/dashboard/ContractEditor.tsx` |
 | Kivitelezés | `lib/constructionService.ts`, `components/dashboard/ConstructionEditor.tsx` |
 | Befejezés és átadás | `lib/completionService.ts`, `components/dashboard/CompletionEditor.tsx` |
+| Dokumentumtár | `lib/projectAttachments.ts`, `app/dokumentumok/page.tsx` |
+| Jogosultsági tábla | `lib/permissionService.ts`, `components/dashboard/PermissionMatrixEditor.tsx` |
 | Firestore-jogosultságok | `firestore.rules` |
 | Storage-jogosultságok | `storage.rules` |
 | Firebase-konfiguráció | `firebase.json`, `.firebaserc` |

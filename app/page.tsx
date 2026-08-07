@@ -56,6 +56,7 @@ import {
   updateCompanyMember,
   updateTeam,
 } from '@/lib/teamService';
+import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMatrix, type PermissionMatrix } from '@/lib/permissionService';
 
 const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '' };
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
@@ -149,6 +150,8 @@ export default function Dashboard() {
   const [teams, setTeams] = useState<CompanyTeam[]>([]);
   const [invites, setInvites] = useState<CompanyInvite[]>([]);
   const [canManageTeam, setCanManageTeam] = useState(false);
+  const [userRole, setUserRole] = useState<MemberRole | 'superadmin' | 'admin'>('installer');
+  const [permissionMatrix, setPermissionMatrix] = useState<PermissionMatrix>(defaultPermissionMatrix);
 
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
@@ -161,10 +164,12 @@ export default function Dashboard() {
     void ensureCurrentMember().then((context) => {
       if (cancelled) return;
       setCanManageTeam(context.canManage);
+      setUserRole(context.role as MemberRole | 'superadmin' | 'admin');
       unsubscribers.push(
         subscribeToMembers(context.companyId, setMembers),
         subscribeToTeams(context.companyId, setTeams),
         subscribeToInvites(context.companyId, setInvites),
+        subscribeToPermissionMatrix(context.companyId, setPermissionMatrix),
       );
     }).catch((error) => setActionError(errorMessage(error)));
     return () => {
@@ -196,6 +201,7 @@ export default function Dashboard() {
     ...members.filter((member) => member.active).map((member) => ({ id: member.uid, type: 'member' as const, label: member.fullName })),
     ...teams.filter((team) => team.active).map((team) => ({ id: team.id, type: 'team' as const, label: team.name })),
   ], [members, teams]);
+  const rolePermissions = userRole in permissionMatrix ? permissionMatrix[userRole as MemberRole] : defaultPermissionMatrix.company_admin;
 
   const monthTitle = calendarMonth.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
   const calendarDraftProject = calendarDraft
@@ -482,6 +488,10 @@ export default function Dashboard() {
     return runAction(async () => { await deleteTeam(teamId); });
   }
 
+  function handlePermissionSave() {
+    return runAction(async () => { await savePermissionMatrix(permissionMatrix); setActionMessage('A jogosultsági tábla mentve.'); });
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <DashboardHeader
@@ -534,13 +544,18 @@ export default function Dashboard() {
             members={members}
             teams={teams}
             invites={invites}
-            canManage={canManageTeam}
+            canManageMembers={canManageTeam || rolePermissions.manageMembers}
+            canManageTeams={canManageTeam || rolePermissions.manageTeams}
+            canEditPermissions={canManageTeam}
             saving={saving}
             onInvite={handleInvite}
             onMemberUpdate={handleMemberUpdate}
             onTeamCreate={handleTeamCreate}
             onTeamUpdate={handleTeamUpdate}
             onTeamDelete={handleTeamDelete}
+            permissionMatrix={permissionMatrix}
+            onPermissionChange={setPermissionMatrix}
+            onPermissionSave={() => { void handlePermissionSave(); }}
           />
         )}
       </div>

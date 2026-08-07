@@ -21,21 +21,35 @@ service firebase.storage {
         );
     }
 
+    function companyAdmin(companyId) {
+      return belongsTo(companyId)
+        && profile().role in ['superadmin', 'company_admin', 'admin'];
+    }
+
+    function canManageDocuments(companyId) {
+      return companyAdmin(companyId)
+        || belongsTo(companyId) && (
+          firestore.exists(/databases/(default)/documents/companies/$(companyId)/settings/permissions)
+            ? firestore.get(/databases/(default)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role].manageDocuments == true
+            : profile().role in ['project_manager', 'surveyor', 'installer']
+        );
+    }
+
     match /companies/{companyId}/projects/{projectId}/images/{fileName} {
       allow read: if belongsTo(companyId);
 
-      allow create: if belongsTo(companyId)
+      allow create: if canManageDocuments(companyId)
         && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
 
       allow update: if false;
-      allow delete: if belongsTo(companyId);
+      allow delete: if canManageDocuments(companyId);
     }
 
     match /companies/{companyId}/projects/{projectId}/signed-contracts/{fileName} {
       allow read: if false;
 
-      allow create: if belongsTo(companyId)
+      allow create: if canManageDocuments(companyId)
         && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType in [
           'application/pdf',
@@ -52,6 +66,14 @@ service firebase.storage {
         && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
       allow update, delete: if false;
+    }
+
+    match /companies/{companyId}/projects/{projectId}/documents/{fileName} {
+      allow read: if belongsTo(companyId);
+      allow create: if canManageDocuments(companyId)
+        && request.resource.size < 25 * 1024 * 1024;
+      allow update: if false;
+      allow delete: if canManageDocuments(companyId);
     }
 
     match /{allPaths=**} {

@@ -11,13 +11,15 @@ import {
 } from 'firebase/firestore';
 import {
   deleteObject,
+  getBlob,
   getDownloadURL,
   ref,
   uploadBytes,
 } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
+import type { ModuleKey } from './projectService';
 
-export type ProjectAttachmentType = 'note' | 'image' | 'video' | 'audio';
+export type ProjectAttachmentType = 'note' | 'image' | 'document' | 'video' | 'audio';
 
 export type ProjectAttachment = {
   id: string;
@@ -30,6 +32,9 @@ export type ProjectAttachment = {
   size?: number;
   createdBy?: string;
   createdAt?: unknown;
+  moduleKey?: ModuleKey | 'general';
+  phaseId?: string | null;
+  title?: string;
 };
 
 type UserProfile = {
@@ -83,7 +88,7 @@ export function subscribeToProjectAttachments(
   };
 }
 
-export async function addProjectNote(projectId: string, text: string) {
+export async function addProjectNote(projectId: string, text: string, moduleKey: ModuleKey | 'general' = 'general', phaseId: string | null = null) {
   const cleanText = text.trim();
   if (!cleanText) throw new Error('A jegyzet nem lehet üres.');
 
@@ -91,12 +96,14 @@ export async function addProjectNote(projectId: string, text: string) {
   await addDoc(attachmentsCollection(companyId, projectId), {
     type: 'note',
     text: cleanText,
+    moduleKey,
+    phaseId,
     createdBy: userId,
     createdAt: serverTimestamp(),
   });
 }
 
-export async function uploadProjectImage(projectId: string, file: File) {
+export async function uploadProjectImage(projectId: string, file: File, moduleKey: ModuleKey | 'general' = 'general', phaseId: string | null = null) {
   if (!file.type.startsWith('image/')) {
     throw new Error('Csak képfájl tölthető fel.');
   }
@@ -129,9 +136,50 @@ export async function uploadProjectImage(projectId: string, file: File) {
     storagePath,
     contentType: file.type,
     size: file.size,
+    moduleKey,
+    phaseId,
     createdBy: userId,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function uploadProjectDocument(
+  projectId: string,
+  file: File,
+  input: { title: string; moduleKey: ModuleKey | 'general'; phaseId: string | null },
+) {
+  const maxSize = 25 * 1024 * 1024;
+  if (file.size > maxSize) throw new Error('A dokumentum legfeljebb 25 MB lehet.');
+  const { companyId, userId } = await getCompanyId();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const storagePath = `companies/${companyId}/projects/${projectId}/documents/${crypto.randomUUID()}-${safeName}`;
+  await uploadBytes(ref(storage, storagePath), file, {
+    contentType: file.type || 'application/octet-stream',
+    customMetadata: { companyId, projectId, uploadedBy: userId, moduleKey: input.moduleKey },
+  });
+  await addDoc(attachmentsCollection(companyId, projectId), {
+    type: 'document',
+    title: input.title.trim() || file.name,
+    fileName: file.name,
+    storagePath,
+    contentType: file.type || 'application/octet-stream',
+    size: file.size,
+    moduleKey: input.moduleKey,
+    phaseId: input.phaseId,
+    createdBy: userId,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function openProtectedAttachment(attachment: ProjectAttachment) {
+  if (!attachment.storagePath) {
+    if (attachment.downloadURL) window.open(attachment.downloadURL, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const blob = await getBlob(ref(storage, attachment.storagePath));
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener,noreferrer');
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export async function deleteProjectAttachment(

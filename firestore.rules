@@ -31,6 +31,21 @@ service cloud.firestore {
         && (superAdmin() || profile().role in ['company_admin', 'admin']);
     }
 
+    function defaultPermission(permission) {
+      return profile().role == 'project_manager'
+        && permission in ['createProjects', 'editProjects', 'manageDocuments', 'manageTeams']
+        || profile().role in ['surveyor', 'installer'] && permission == 'manageDocuments';
+    }
+
+    function hasPermission(companyId, permission) {
+      return companyAdmin(companyId)
+        || belongsTo(companyId) && (
+          exists(/databases/$(database)/documents/companies/$(companyId)/settings/permissions)
+            ? get(/databases/$(database)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role][permission] == true
+            : defaultPermission(permission)
+        );
+    }
+
     match /users/{userId} {
       allow read: if activeUser()
         && (superAdmin() || request.auth.uid == userId);
@@ -48,10 +63,16 @@ service cloud.firestore {
       allow read: if belongsTo(companyId);
       allow create, update, delete: if companyAdmin(companyId);
 
+      match /projects/{projectId} {
+        allow read: if belongsTo(companyId);
+        allow create: if hasPermission(companyId, 'createProjects');
+        allow update: if hasPermission(companyId, 'editProjects');
+        allow delete: if companyAdmin(companyId);
+      }
+
       match /{module}/{documentId} {
         allow read, create, update, delete: if belongsTo(companyId)
           && module in [
-            'projects',
             'events',
             'surveys',
             'constructions',
@@ -66,12 +87,12 @@ service cloud.firestore {
       match /projects/{projectId}/attachments/{attachmentId} {
         allow read: if belongsTo(companyId);
 
-        allow create: if belongsTo(companyId)
-          && request.resource.data.type in ['note', 'image', 'video', 'audio']
+        allow create: if hasPermission(companyId, 'manageDocuments')
+          && request.resource.data.type in ['note', 'image', 'document', 'video', 'audio']
           && request.resource.data.createdBy == request.auth.uid;
 
         allow update: if false;
-        allow delete: if belongsTo(companyId);
+        allow delete: if hasPermission(companyId, 'manageDocuments');
       }
 
       match /projects/{projectId}/constructionEntries/{entryId} {
@@ -86,8 +107,17 @@ service cloud.firestore {
         allow read: if belongsTo(companyId)
           && adminSection in ['members', 'teams', 'settings', 'invites'];
 
-        allow create, update, delete: if companyAdmin(companyId)
-          && adminSection in ['members', 'teams', 'settings', 'invites'];
+        allow create, update, delete: if (
+          adminSection == 'teams' && hasPermission(companyId, 'manageTeams')
+          || adminSection in ['members', 'invites'] && hasPermission(companyId, 'manageMembers')
+          || adminSection == 'settings' && companyAdmin(companyId)
+        );
+      }
+
+      match /settings/permissions {
+        allow read: if belongsTo(companyId);
+        allow create, update: if companyAdmin(companyId);
+        allow delete: if false;
       }
 
       match /activityLog/{logId} {

@@ -64,6 +64,17 @@ export const registerTenant = onCall(async (request) => {
       updatedAt: new Date(),
     });
 
+    await companyRef.collection('settings').doc('permissions').set({
+      roles: {
+        company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: true },
+        project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: false },
+        surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
+        installer: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
+        finance: { createProjects: false, editProjects: false, manageDocuments: false, manageTeams: false, manageMembers: false },
+      },
+      createdAt: new Date(),
+    });
+
     return { success: true, uid: userRecord.uid };
   } catch (error: unknown) {
     console.error("Regisztrációs hiba:", error);
