@@ -26,6 +26,7 @@ import { auth } from '@/lib/firebase';
 import {
   closeProject,
   createNewInquiry,
+  isProjectFinanceOverdue,
   type ModuleKey,
   type Project,
   subscribeToCompanyProjects,
@@ -180,7 +181,7 @@ export default function Dashboard() {
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.closed), [projects]);
   const delayedCount = useMemo(
-    () => activeProjects.filter((project) => project.status === 'Csúszás').length,
+    () => activeProjects.filter((project) => project.status === 'Csúszás' || isProjectFinanceOverdue(project)).length,
     [activeProjects],
   );
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
@@ -320,7 +321,7 @@ export default function Dashboard() {
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : 'module');
+    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : key === 'finance' ? 'finance' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadDetailsDraft(project);

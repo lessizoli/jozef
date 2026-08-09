@@ -84,6 +84,26 @@ export type ContractData = {
   signedDocument?: SignedContractDocument;
 };
 
+export type InvoiceDocument = {
+  fileName: string;
+  storagePath: string;
+  contentType: string;
+  size: number;
+  uploadedAt?: unknown;
+  uploadedBy?: string;
+};
+
+export type FinanceData = {
+  invoiceNumber: string;
+  grossAmount: number;
+  invoiceDate: string;
+  dueDate: string;
+  paidAt: string;
+  note: string;
+  invoiceDocument?: InvoiceDocument;
+  updatedAt?: unknown;
+};
+
 export interface Project {
   id: string;
   companyId: string;
@@ -103,6 +123,7 @@ export interface Project {
   contractData?: ContractData;
   constructionData?: { phases: import('./constructionService').ConstructionPhase[]; startedAt?: unknown; finishedAt?: unknown };
   completionData?: import('./completionService').CompletionData;
+  financeData?: FinanceData;
   moduleAccessSnapshot?: {
     plan: string;
     enabledModules: string[];
@@ -316,6 +337,31 @@ function normalizeContractData(value: unknown, projectCode: string): ContractDat
   };
 }
 
+function normalizeFinanceData(value: unknown): FinanceData | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const data = value as Record<string, unknown>;
+  const rawDocument = data.invoiceDocument && typeof data.invoiceDocument === 'object'
+    ? data.invoiceDocument as Record<string, unknown>
+    : null;
+  return {
+    invoiceNumber: stringValue(data.invoiceNumber),
+    grossAmount: numberOrZero(data.grossAmount),
+    invoiceDate: stringValue(data.invoiceDate),
+    dueDate: stringValue(data.dueDate),
+    paidAt: stringValue(data.paidAt),
+    note: stringValue(data.note),
+    invoiceDocument: rawDocument?.storagePath ? {
+      fileName: stringValue(rawDocument.fileName),
+      storagePath: String(rawDocument.storagePath),
+      contentType: stringValue(rawDocument.contentType),
+      size: numberOrZero(rawDocument.size),
+      uploadedAt: rawDocument.uploadedAt,
+      uploadedBy: stringValue(rawDocument.uploadedBy),
+    } : undefined,
+    updatedAt: data.updatedAt,
+  };
+}
+
 function normalizeProject(id: string, companyId: string, data: Record<string, unknown>): Project {
   const modules = (data.modules ?? {}) as Partial<Record<ModuleKey, ProjectModule>>;
   const code = typeof data.code === 'string' ? data.code : `PRJ-${id.slice(0, 6).toUpperCase()}`;
@@ -345,6 +391,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     completionData: data.completionData && typeof data.completionData === 'object'
       ? data.completionData as import('./completionService').CompletionData
       : undefined,
+    financeData: normalizeFinanceData(data.financeData),
     moduleAccessSnapshot: data.moduleAccessSnapshot && typeof data.moduleAccessSnapshot === 'object' ? {
       plan: stringValue((data.moduleAccessSnapshot as { plan?: unknown }).plan),
       enabledModules: Array.isArray((data.moduleAccessSnapshot as { enabledModules?: unknown }).enabledModules)
@@ -363,6 +410,13 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
+}
+
+export function isProjectFinanceOverdue(project: Project, today = new Date()): boolean {
+  const dueDate = project.financeData?.dueDate;
+  if (!dueDate || project.modules.finance.status === 'Fizetve' || project.financeData?.paidAt) return false;
+  const localToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  return dueDate < localToday;
 }
 
 export function subscribeToCompanyProjects(

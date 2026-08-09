@@ -1,4 +1,4 @@
-import type { ModuleKey, Project } from '@/lib/projectService';
+import { isProjectFinanceOverdue, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleClass, moduleKeys, moduleLabels } from './dashboardConfig';
 
 type Props = {
@@ -15,6 +15,11 @@ function ProjectCard({
   onEditProject,
   onCloseProject,
 }: Omit<Props, 'projects' | 'onCreate'> & { project: Project }) {
+  const financeOverdue = isProjectFinanceOverdue(project);
+  const completedDate = (value: unknown) => {
+    if (!value || typeof value !== 'object' || !('toDate' in value)) return '';
+    return (value as { toDate: () => Date }).toDate().toLocaleDateString('hu-HU');
+  };
   return (
     <article className={`relative rounded-2xl border bg-slate-900 p-5 shadow-lg ${project.closed ? 'border-slate-800 opacity-75' : 'border-slate-800'}`}>
       <details className="absolute right-4 top-4 z-10">
@@ -35,7 +40,7 @@ function ProjectCard({
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
             >
               <span>{moduleLabels[key]}</span>
-              <span className="text-xs text-slate-500">{project.modules[key].status}</span>
+              <span className="text-xs text-slate-500">{key === 'finance' && financeOverdue ? 'Késedelem' : project.modules[key].status}</span>
             </button>
           ))}
           <div className="my-2 border-t border-slate-800" />
@@ -60,8 +65,8 @@ function ProjectCard({
 
       <div className="flex flex-wrap items-center gap-2 pr-12">
         <span className="rounded bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{project.code}</span>
-        <span className={project.closed ? 'text-xs font-semibold text-slate-400' : project.status === 'Csúszás' ? 'text-xs font-semibold text-rose-400' : 'text-xs font-semibold text-amber-400'}>
-          {project.lastAction ?? project.status}
+        <span className={project.closed ? 'text-xs font-semibold text-slate-400' : project.status === 'Csúszás' || financeOverdue ? 'text-xs font-semibold text-rose-400' : 'text-xs font-semibold text-amber-400'}>
+          {financeOverdue ? 'A számla fizetési határideje lejárt' : project.lastAction ?? project.status}
         </span>
       </div>
       <h2 className="mt-3 text-lg font-bold">{project.title}</h2>
@@ -79,7 +84,7 @@ function ProjectCard({
             >
               <span className="block text-[11px] font-bold uppercase tracking-[0.16em] opacity-70">{index + 1}. szakasz</span>
               <span className="mt-2 block text-base font-bold">{moduleLabels[key]}</span>
-              <span className="mt-2 block text-sm font-medium">{projectModule.status}</span>
+              <span className="mt-2 block text-sm font-medium">{completedDate(projectModule.completedAt) ? `Elkészült: ${completedDate(projectModule.completedAt)}` : key === 'finance' && financeOverdue ? 'Késedelem' : projectModule.status}</span>
               {projectModule.scheduledAt && (
                 <span className="mt-2 block text-xs opacity-80">{projectModule.scheduledAt}{projectModule.scheduledTime ? ` · ${projectModule.scheduledTime}` : ''}</span>
               )}

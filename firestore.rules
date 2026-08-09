@@ -33,17 +33,30 @@ service cloud.firestore {
 
     function defaultPermission(permission) {
       return profile().role == 'project_manager'
-        && permission in ['createProjects', 'editProjects', 'manageDocuments', 'manageTeams']
-        || profile().role in ['surveyor', 'installer'] && permission == 'manageDocuments';
+        && permission in ['createProjects', 'editProjects', 'manageDocuments', 'manageFinance', 'manageTeams']
+        || profile().role in ['surveyor', 'installer'] && permission == 'manageDocuments'
+        || profile().role == 'finance' && permission == 'manageFinance';
     }
 
     function hasPermission(companyId, permission) {
       return companyAdmin(companyId)
         || belongsTo(companyId) && (
           exists(/databases/$(database)/documents/companies/$(companyId)/settings/permissions)
-            ? get(/databases/$(database)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role][permission] == true
+            ? get(/databases/$(database)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role].get(permission, defaultPermission(permission)) == true
             : defaultPermission(permission)
         );
+    }
+
+    function financeOnlyProjectUpdate(companyId) {
+      return hasPermission(companyId, 'manageFinance')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'financeData', 'modules', 'status', 'lastAction', 'updatedAt'
+        ])
+        && request.resource.data.modules.survey == resource.data.modules.survey
+        && request.resource.data.modules.quote == resource.data.modules.quote
+        && request.resource.data.modules.contract == resource.data.modules.contract
+        && request.resource.data.modules.construction == resource.data.modules.construction
+        && request.resource.data.modules.completion == resource.data.modules.completion;
     }
 
     match /users/{userId} {
@@ -66,7 +79,8 @@ service cloud.firestore {
       match /projects/{projectId} {
         allow read: if belongsTo(companyId);
         allow create: if hasPermission(companyId, 'createProjects');
-        allow update: if hasPermission(companyId, 'editProjects');
+        allow update: if hasPermission(companyId, 'editProjects')
+          || financeOnlyProjectUpdate(companyId);
         allow delete: if companyAdmin(companyId);
       }
 

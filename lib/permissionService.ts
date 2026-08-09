@@ -2,17 +2,17 @@ import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/fires
 import { auth, db } from './firebase';
 import type { MemberRole } from './teamService';
 
-export type PermissionKey = 'createProjects' | 'editProjects' | 'manageDocuments' | 'manageTeams' | 'manageMembers';
+export type PermissionKey = 'createProjects' | 'editProjects' | 'manageDocuments' | 'manageFinance' | 'manageTeams' | 'manageMembers';
 export type PermissionMatrix = Record<MemberRole, Record<PermissionKey, boolean>>;
 export const permissionLabels: Record<PermissionKey, string> = {
-  createProjects: 'Projekt létrehozása', editProjects: 'Projektek módosítása', manageDocuments: 'Dokumentumok kezelése', manageTeams: 'Csapatok kezelése', manageMembers: 'Munkatársak kezelése',
+  createProjects: 'Projekt létrehozása', editProjects: 'Projektek módosítása', manageDocuments: 'Dokumentumok kezelése', manageFinance: 'Pénzügy kezelése', manageTeams: 'Csapatok kezelése', manageMembers: 'Munkatársak kezelése',
 };
 export const defaultPermissionMatrix: PermissionMatrix = {
-  company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: true },
-  project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: false },
-  surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
-  installer: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
-  finance: { createProjects: false, editProjects: false, manageDocuments: false, manageTeams: false, manageMembers: false },
+  company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: true },
+  project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: false },
+  surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
+  installer: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
+  finance: { createProjects: false, editProjects: false, manageDocuments: false, manageFinance: true, manageTeams: false, manageMembers: false },
 };
 
 async function adminContext() {
@@ -22,7 +22,16 @@ async function adminContext() {
   return String(data.companyId);
 }
 export function subscribeToPermissionMatrix(companyId: string, callback: (matrix: PermissionMatrix) => void) {
-  return onSnapshot(doc(db, 'companies', companyId, 'settings', 'permissions'), (snapshot) => callback(snapshot.exists() ? snapshot.data().roles as PermissionMatrix : defaultPermissionMatrix));
+  return onSnapshot(doc(db, 'companies', companyId, 'settings', 'permissions'), (snapshot) => {
+    const stored = snapshot.exists() ? snapshot.data().roles as Partial<PermissionMatrix> : {};
+    const normalized = Object.fromEntries(
+      Object.entries(defaultPermissionMatrix).map(([role, defaults]) => [
+        role,
+        { ...defaults, ...(stored[role as MemberRole] ?? {}) },
+      ]),
+    ) as PermissionMatrix;
+    callback(normalized);
+  });
 }
 export async function savePermissionMatrix(matrix: PermissionMatrix) {
   const companyId = await adminContext();
