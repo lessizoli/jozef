@@ -77,6 +77,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Védetten betöltött, kattintható képbélyegképek a teljes projektlapon
 - [x] Egységes vízszintes alkalmazásfejléc a dashboardon, dokumentumtárban és projektlapon
 - [x] Világos naptárnézet olvasható, kontrasztos eseményfeliratokkal
+- [x] Céges adatlap megtekintése és adminisztrátori szerkesztése a Munkatársak részben
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése

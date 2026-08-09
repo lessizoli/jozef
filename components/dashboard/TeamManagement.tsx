@@ -3,6 +3,7 @@ import type { CompanyInvite, CompanyMember, CompanyTeam, MemberRole } from '@/li
 import { roleLabels } from '@/lib/teamService';
 import type { PermissionMatrix } from '@/lib/permissionService';
 import PermissionMatrixEditor from './PermissionMatrixEditor';
+import CompanyDetailsEditor from './CompanyDetailsEditor';
 
 type Props = {
   members: CompanyMember[];
@@ -48,6 +49,7 @@ export default function TeamManagement({ members, teams, invites, canManageMembe
 
   return (
     <section className="space-y-6">
+      <CompanyDetailsEditor canEdit={canEditPermissions} />
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <div className="flex items-center justify-between gap-3">
