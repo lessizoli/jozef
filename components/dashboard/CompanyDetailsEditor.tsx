@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { subscribeToCompanyDetails, updateCompanyDetails, type CompanyDetails } from '@/lib/companyService';
+import { createAdditionalCompany, subscribeToCompanyDetails, updateCompanyDetails, type CompanyDetails } from '@/lib/companyService';
 
 const emptyDetails: CompanyDetails = { name: '', taxNumber: '', address: '', email: '', phone: '', website: '', representative: '', bankAccount: '' };
 
@@ -8,6 +8,8 @@ export default function CompanyDetailsEditor({ canEdit }: { canEdit: boolean }) 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showCreateCompany, setShowCreateCompany] = useState(false);
+  const [newCompanyName, setNewCompanyName] = useState('');
 
   useEffect(() => subscribeToCompanyDetails(setDetails), []);
 
@@ -18,10 +20,17 @@ export default function CompanyDetailsEditor({ canEdit }: { canEdit: boolean }) 
     finally { setSaving(false); }
   }
 
+  async function createCompany(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSaving(true); setMessage(''); setError('');
+    try { await createAdditionalCompany(newCompanyName); window.location.href = '/?view=team'; }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Az új cég létrehozása sikertelen.'); setSaving(false); }
+  }
+
   const field = (key: keyof CompanyDetails, label: string, options?: { type?: string; placeholder?: string; required?: boolean }) => <label className="text-sm font-semibold text-slate-600">{label}<input type={options?.type ?? 'text'} required={options?.required} disabled={!canEdit || saving} value={String(details[key] ?? '')} placeholder={options?.placeholder} onChange={(event) => setDetails({ ...details, [key]: event.target.value })} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-sky-500 disabled:bg-slate-100 disabled:text-slate-500"/></label>;
 
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-bold text-slate-900">Céges adatok</h2><p className="mt-1 text-sm text-slate-500">A vállalkozás hivatalos és kapcsolattartási adatai.</p></div>{details.plan && <span className="w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">Csomag: {details.plan}</span>}</div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-bold text-slate-900">Céges adatok</h2><p className="mt-1 text-sm text-slate-500">A vállalkozás hivatalos és kapcsolattartási adatai.</p></div><div className="flex flex-wrap gap-2">{details.plan && <span className="w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">Csomag: {details.plan}</span>}<button type="button" onClick={() => setShowCreateCompany((show) => !show)} className="rounded-lg border border-sky-200 px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-50">+ Másik cég létrehozása</button></div></div>
+    {showCreateCompany && <form onSubmit={createCompany} className="mt-5 flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50 p-4 sm:flex-row sm:items-end"><label className="flex-1 text-sm font-semibold text-slate-700">Új vállalkozás neve<input required value={newCompanyName} onChange={(event) => setNewCompanyName(event.target.value)} className="mt-1.5 w-full rounded-lg border border-sky-200 bg-white px-3 py-2.5 outline-none focus:border-sky-500"/></label><button disabled={saving || !newCompanyName.trim()} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">Létrehozás és átváltás</button></form>}
     <form onSubmit={submit} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {field('name', 'Vállalkozás neve', { required: true })}
       {field('taxNumber', 'Adószám', { placeholder: '12345678-1-42' })}

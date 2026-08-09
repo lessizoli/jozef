@@ -51,6 +51,7 @@ export const registerTenant = onCall(async (request) => {
       companyId,
       role: 'company_admin',
       active: true,
+      memberships: { [companyId]: { companyId, companyName, role: 'company_admin', active: true } },
       createdAt: new Date(),
     });
 
@@ -78,6 +79,8 @@ export const registerTenant = onCall(async (request) => {
     return { success: true, uid: userRecord.uid };
   } catch (error: unknown) {
     console.error("Regisztrációs hiba:", error);
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+    if (code === 'auth/email-already-exists') throw new HttpsError('already-exists', 'Ehhez az e-mail-címhez már tartozik fiók. Lépj be, majd hozz létre új céget a Munkatársak menüben.');
     const message = error instanceof Error ? error.message : 'A regisztráció nem sikerült.';
     throw new HttpsError('internal', message);
   }

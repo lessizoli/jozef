@@ -78,6 +78,9 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Egységes vízszintes alkalmazásfejléc a dashboardon, dokumentumtárban és projektlapon
 - [x] Világos naptárnézet olvasható, kontrasztos eseményfeliratokkal
 - [x] Céges adatlap megtekintése és adminisztrátori szerkesztése a Munkatársak részben
+- [x] Egy felhasználói e-mailhez több céges tagság és aktívcég-váltás
+- [x] További vállalkozás biztonságos létrehozása meglévő bejelentkezésből
+- [x] Meglévő Envision-felhasználó meghívása további céghez
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése

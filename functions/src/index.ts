@@ -11,6 +11,7 @@ import { sendContractWithBuffer } from './contracts/sendContractWithBuffer';
 import { downloadSignedContract } from './contracts/downloadSignedContract';
 import { registerTenant } from './auth/registerTenant'; // Ez az importod
 import { inviteCompanyMember, updateCompanyMember } from './auth/manageCompanyMembers';
+import { createCompanyForCurrentUser, switchActiveCompany } from './auth/companyMemberships';
 
 // Figyelj rá, hogy mind a kettő itt legyen bent az exportban!
 export { 
@@ -22,4 +23,6 @@ export {
   registerTenant,
   inviteCompanyMember,
   updateCompanyMember,
+  createCompanyForCurrentUser,
+  switchActiveCompany,
 };

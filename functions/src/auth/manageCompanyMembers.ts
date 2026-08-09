@@ -45,12 +45,9 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   if (!existingInvite.empty) throw new HttpsError('already-exists', 'Erre az e-mail-címre már van függő meghívás.');
 
   let userRecord;
+  let isNewUser = false;
   try {
     userRecord = await getAuth().getUserByEmail(email);
-    const existingProfile = await db.doc(`users/${userRecord.uid}`).get();
-    if (existingProfile.exists && existingProfile.data()?.companyId !== companyId) {
-      throw new HttpsError('already-exists', 'Ez az e-mail-cím már másik céghez tartozik.');
-    }
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
@@ -60,17 +57,21 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
       displayName: fullName,
       password: randomBytes(32).toString('base64url'),
     });
+    isNewUser = true;
   }
 
-  await getAuth().setCustomUserClaims(userRecord.uid, { companyId, role });
+  const companySnapshot = await db.doc(`companies/${companyId}`).get();
+  const companyName = String(companySnapshot.data()?.name ?? 'Névtelen cég');
+  const profileSnapshot = await db.doc(`users/${userRecord.uid}`).get();
+  const hasActiveCompany = profileSnapshot.exists && Boolean(profileSnapshot.data()?.companyId);
+  if (!hasActiveCompany) await getAuth().setCustomUserClaims(userRecord.uid, { companyId, role });
   const batch = db.batch();
   batch.set(db.doc(`users/${userRecord.uid}`), {
     uid: userRecord.uid,
     email,
     fullName,
-    companyId,
-    role,
-    active: true,
+    ...(!hasActiveCompany ? { companyId, role, active: true } : {}),
+    memberships: { [companyId]: { companyId, companyName, role, active: true } },
     createdAt: new Date(),
     updatedAt: new Date(),
   }, { merge: true });
@@ -86,7 +87,7 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   batch.set(inviteRef, { email, fullName, role, status: 'sent', userId: userRecord.uid, createdAt: new Date(), invitedBy: request.auth?.uid });
   await batch.commit();
 
-  const passwordLink = await getAuth().generatePasswordResetLink(email);
+  const passwordLink = isNewUser ? await getAuth().generatePasswordResetLink(email) : '';
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST.value(),
     port: 465,
@@ -98,7 +99,9 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
       from: `"Envision CRM" <${SMTP_USER.value()}>`,
       to: email,
       subject: 'Meghívás az Envision CRM rendszerbe',
-      text: `Szia ${fullName}!\n\nMeghívást kaptál az Envision CRM rendszerbe. A jelszavadat ezen a hivatkozáson állíthatod be:\n${passwordLink}\n\nA hivatkozás egyszer használható.`,
+      text: isNewUser
+        ? `Szia ${fullName}!\n\nMeghívást kaptál az Envision CRM rendszerbe. A jelszavadat ezen a hivatkozáson állíthatod be:\n${passwordLink}\n\nA hivatkozás egyszer használható.`
+        : `Szia ${fullName}!\n\nMeghívást kaptál a(z) ${companyName} céghez az Envision CRM rendszerben. A meglévő fiókoddal belépve a fejlécben válthatsz a cégeid között.`,
     });
   } catch (error) {
     await inviteRef.update({ status: 'email_error', errorAt: new Date() });
@@ -123,10 +126,16 @@ export const updateCompanyMember = onCall(async (request) => {
   const memberSnapshot = await db.doc(`companies/${companyId}/members/${uid}`).get();
   if (!memberSnapshot.exists) throw new HttpsError('not-found', 'A munkatárs nem található.');
 
-  await getAuth().setCustomUserClaims(uid, { companyId, role });
-  await getAuth().updateUser(uid, { disabled: !active });
+  const profileSnapshot = await db.doc(`users/${uid}`).get();
+  const isActiveCompany = profileSnapshot.data()?.companyId === companyId;
+  const companyName = String((await db.doc(`companies/${companyId}`).get()).data()?.name ?? 'Névtelen cég');
+  if (isActiveCompany) await getAuth().setCustomUserClaims(uid, { companyId, role });
   const batch = db.batch();
-  batch.update(db.doc(`users/${uid}`), { role, active, updatedAt: new Date() });
+  batch.set(db.doc(`users/${uid}`), {
+    ...(isActiveCompany ? { role, active } : {}),
+    memberships: { [companyId]: { companyId, companyName, role, active } },
+    updatedAt: new Date(),
+  }, { merge: true });
   batch.update(db.doc(`companies/${companyId}/members/${uid}`), { role, active, updatedAt: new Date() });
   await batch.commit();
   return { success: true };
