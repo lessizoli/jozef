@@ -71,6 +71,8 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Moduláris projektfolyamat és állapotszínezés
 - [x] Projekt legutóbbi műveletének megjelenítése
 - [x] Projektkártya gyorsműveletek
+- [x] Stabil, soron belül kinyíló gyorsműveleti panel mobil- és rövid listás nézethez
+- [x] Teljes projektlap alapadatokkal, modulfolyamattal, képekkel, feljegyzésekkel és dokumentumokkal
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
