@@ -1,132 +1,51 @@
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { isProjectFinanceOverdue, type ModuleKey, type Project } from '@/lib/projectService';
-import { moduleClass, moduleKeys, moduleLabels } from './dashboardConfig';
+import { moduleKeys, moduleLabels } from './dashboardConfig';
 
-type Props = {
-  projects: Project[];
-  onCreate: () => void;
-  onOpenModule: (project: Project, moduleKey: ModuleKey) => void;
-  onEditProject: (project: Project) => void;
-  onCloseProject: (project: Project) => void;
-};
+type Props = { projects: Project[]; onCreate: () => void; onOpenModule: (project: Project, moduleKey: ModuleKey) => void; onEditProject: (project: Project) => void; onCloseProject: (project: Project) => void };
+const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
+const groups: Array<{ key: 'delayed' | 'closed' | ModuleKey; label: string; note: string }> = [
+  { key: 'delayed', label: 'Csúszásban', note: 'Minden késésben lévő projekt, munkaszakasztól függetlenül' },
+  { key: 'survey', label: 'Felmérés', note: 'Időpontok, helyszíni adatok és felmérési dokumentáció' },
+  { key: 'quote', label: 'Árajánlat', note: 'Ajánlatkészítés, kiküldés és elfogadás' },
+  { key: 'contract', label: 'Szerződés', note: 'Szerződéskészítés, kiküldés és aláírás' },
+  { key: 'construction', label: 'Kivitelezés', note: 'Munkafázisok, csapatok, napló és helyszíni anyagok' },
+  { key: 'completion', label: 'Befejezés és átadás', note: 'Ellenőrzőlista, ügyfél-visszaigazolás és projektlezárás' },
+  { key: 'finance', label: 'Pénzügy', note: 'Külön rendelhető pénzügyi folyamat' },
+  { key: 'closed', label: 'Lezárt projektek', note: 'Korábbi, már lezárt munkák' },
+];
 
-function ProjectCard({
-  project,
-  onOpenModule,
-  onEditProject,
-  onCloseProject,
-}: Omit<Props, 'projects' | 'onCreate'> & { project: Project }) {
+function delayed(project: Project) { return project.status === 'Csúszás' || isProjectFinanceOverdue(project) || moduleKeys.some((key) => project.modules[key].delayed || ['Csúszás', 'Késedelem'].includes(project.modules[key].status)); }
+function currentStage(project: Project): ModuleKey {
+  return moduleKeys.find((key) => project.modules[key].enabled && !completedStatuses.includes(project.modules[key].status) && project.modules[key].status !== 'Intézendő')
+    ?? moduleKeys.find((key) => project.modules[key].enabled && !completedStatuses.includes(project.modules[key].status))
+    ?? [...moduleKeys].reverse().find((key) => project.modules[key].enabled)
+    ?? 'survey';
+}
+
+function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProject }: { project: Project; stage: ModuleKey; onOpenModule: Props['onOpenModule']; onEditProject: Props['onEditProject']; onCloseProject: Props['onCloseProject'] }) {
+  const projectModule = project.modules[stage];
   const financeOverdue = isProjectFinanceOverdue(project);
-  const completedDate = (value: unknown) => {
-    if (!value || typeof value !== 'object' || !('toDate' in value)) return '';
-    return (value as { toDate: () => Date }).toDate().toLocaleDateString('hu-HU');
-  };
-  return (
-    <article className={`relative rounded-2xl border bg-slate-900 p-5 shadow-lg ${project.closed ? 'border-slate-800 opacity-75' : 'border-slate-800'}`}>
-      <details className="absolute right-4 top-4 z-10">
-        <summary
-          className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-lg border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-sky-500 hover:text-sky-300 [&::-webkit-details-marker]:hidden"
-          aria-label={`${project.code} műveletei`}
-        >
-          ↓
-        </summary>
-        <div className="absolute right-0 mt-2 w-64 rounded-xl border border-slate-700 bg-slate-950 p-2 shadow-2xl">
-          <p className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">Projektfolyamat kezelése</p>
-          {!project.closed && moduleKeys.map((key) => (
-            <button
-              type="button"
-              key={key}
-              disabled={!project.modules[key].enabled}
-              onClick={() => onOpenModule(project, key)}
-              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-600"
-            >
-              <span>{moduleLabels[key]}</span>
-              <span className="text-xs text-slate-500">{key === 'finance' && financeOverdue ? 'Késedelem' : project.modules[key].status}</span>
-            </button>
-          ))}
-          <div className="my-2 border-t border-slate-800" />
-          <button
-            type="button"
-            onClick={() => onEditProject(project)}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm text-sky-300 hover:bg-slate-800"
-          >
-            {project.closed ? 'Projektadatok megtekintése' : 'Projektadatok módosítása'}
-          </button>
-          <Link
-            href={`/dokumentumok?project=${encodeURIComponent(project.id)}`}
-            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-sky-300 hover:bg-slate-800"
-          >
-            Projektanyagok
-          </Link>
-          {!project.closed && (
-            <button
-              type="button"
-              onClick={() => onCloseProject(project)}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-300 hover:bg-rose-500/10"
-            >
-              Projekt lezárása
-            </button>
-          )}
-        </div>
-      </details>
-
-      <div className="flex flex-wrap items-center gap-2 pr-12">
-        <span className="rounded bg-slate-800 px-2 py-1 text-xs font-semibold text-slate-300">{project.code}</span>
-        <span className={project.closed ? 'text-xs font-semibold text-slate-400' : project.status === 'Csúszás' || financeOverdue ? 'text-xs font-semibold text-rose-400' : 'text-xs font-semibold text-amber-400'}>
-          {financeOverdue ? 'A számla fizetési határideje lejárt' : project.lastAction ?? project.status}
-        </span>
-      </div>
-      <h2 className="mt-3 text-lg font-bold">{project.title}</h2>
-      <p className="mt-1 text-sm text-slate-400">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-        {moduleKeys.map((key, index) => {
-          const projectModule = project.modules[key];
-          return (
-            <button
-              type="button"
-              key={key}
-              disabled={project.closed || !projectModule.enabled}
-              onClick={() => onOpenModule(project, key)}
-              className={`min-h-28 rounded-xl border-2 p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg disabled:hover:translate-y-0 ${moduleClass(project, key)}`}
-            >
-              <span className="block text-[11px] font-bold uppercase tracking-[0.16em] opacity-70">{index + 1}. szakasz</span>
-              <span className="mt-2 block text-base font-bold">{moduleLabels[key]}</span>
-              <span className="mt-2 block text-sm font-medium">{completedDate(projectModule.completedAt) ? `Elkészült: ${completedDate(projectModule.completedAt)}` : key === 'finance' && financeOverdue ? 'Késedelem' : projectModule.status}</span>
-              {projectModule.scheduledAt && (
-                <span className="mt-2 block text-xs opacity-80">{projectModule.scheduledAt}{projectModule.scheduledTime ? ` · ${projectModule.scheduledTime}` : ''}</span>
-              )}
-              {projectModule.assignedTo && <span className="mt-1 block truncate text-xs opacity-80">{projectModule.assignedTo}</span>}
-            </button>
-          );
-        })}
-      </div>
-    </article>
-  );
+  const stageStatus = stage === 'finance' && financeOverdue ? 'Késedelem' : projectModule.status;
+  return <div className="grid gap-4 border-t border-slate-200 px-5 py-4 transition hover:bg-slate-50 lg:grid-cols-[minmax(220px,1.4fr)_minmax(150px,.8fr)_minmax(140px,.7fr)_auto] lg:items-center">
+    <div className="min-w-0"><span className="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700">{project.code}</span><h3 className="mt-2 truncate text-sm font-bold text-slate-800">{project.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p></div>
+    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aktuális szakasz</p><p className={`mt-1.5 text-xs font-bold ${delayed(project) ? 'text-rose-600' : completedStatuses.includes(projectModule.status) ? 'text-emerald-600' : 'text-amber-600'}`}>{moduleLabels[stage]} · {stageStatus}</p>{projectModule.scheduledAt && <p className="mt-1 text-xs text-slate-500">{projectModule.scheduledAt}{projectModule.scheduledTime ? ` · ${projectModule.scheduledTime}` : ''}</p>}</div>
+    <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Felelős</p><p className="mt-1.5 text-xs font-semibold text-slate-600">{projectModule.assignedTo || 'Nincs hozzárendelve'}</p><p className="mt-1 truncate text-[11px] text-slate-400">{financeOverdue ? 'A számla fizetési határideje lejárt' : project.lastAction}</p></div>
+    <details className="relative justify-self-start lg:justify-self-end"><summary className="cursor-pointer list-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-sky-700 hover:border-sky-300 [&::-webkit-details-marker]:hidden">Megnyitás ▾</summary><div className="absolute right-0 z-20 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">{!project.closed && moduleKeys.map((key) => <button type="button" key={key} disabled={!project.modules[key].enabled} onClick={() => onOpenModule(project, key)} className="flex w-full justify-between rounded-lg px-3 py-2 text-left text-xs text-slate-600 hover:bg-slate-50 disabled:text-slate-300"><span>{moduleLabels[key]}</span><span>{key === 'finance' && financeOverdue ? 'Késedelem' : project.modules[key].status}</span></button>)}<div className="my-1 border-t border-slate-100"/><button type="button" onClick={() => onEditProject(project)} className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-sky-700 hover:bg-sky-50">{project.closed ? 'Projektadatok megtekintése' : 'Projektadatok módosítása'}</button><Link href={`/dokumentumok?project=${encodeURIComponent(project.id)}`} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-sky-700 hover:bg-sky-50">Projektanyagok</Link>{!project.closed && <button type="button" onClick={() => onCloseProject(project)} className="w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50">Projekt lezárása</button>}</div></details>
+  </div>;
 }
 
 export default function ProjectList({ projects, onCreate, onOpenModule, onEditProject, onCloseProject }: Props) {
-  return (
-    <section className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold">Projektek</h2>
-        <p className="text-sm text-slate-500">Minden projekt teljes folyamata egy kártyán.</p>
-      </div>
-      {projects.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-10 text-center">
-          <p className="font-semibold text-slate-300">Még nincs projekt ebben a cégben.</p>
-          <button type="button" onClick={onCreate} className="mt-5 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold hover:bg-sky-500">
-            Első érdeklődés rögzítése
-          </button>
-        </div>
-      ) : projects.map((project) => (
-        <ProjectCard
-          key={project.id}
-          project={project}
-          onOpenModule={onOpenModule}
-          onEditProject={onEditProject}
-          onCloseProject={onCloseProject}
-        />
-      ))}
-    </section>
-  );
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set(['delayed', 'survey', 'construction', 'completion']));
+  const grouped = useMemo(() => groups.map((group) => ({ ...group, projects: projects.filter((project) => {
+    if (group.key === 'closed') return project.closed;
+    if (project.closed) return false;
+    if (group.key === 'delayed') return delayed(project);
+    if (delayed(project)) return false;
+    return currentStage(project) === group.key;
+  }) })), [projects]);
+  function toggle(key: string) { setOpenGroups((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; }); }
+  if (projects.length === 0) return <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"><p className="font-semibold text-slate-600">Még nincs projekt ebben a cégben.</p><button type="button" onClick={onCreate} className="mt-5 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-500">Első érdeklődés rögzítése</button></section>;
+  return <section className="space-y-3">{grouped.map((group) => { const open = openGroups.has(group.key); const isDelayed = group.key === 'delayed'; const optional = ['quote', 'contract', 'finance'].includes(group.key); return <article key={group.key} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${isDelayed ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'} ${optional ? 'opacity-90' : ''}`}><button type="button" onClick={() => toggle(group.key)} aria-expanded={open} className={`flex w-full items-center gap-3 px-5 py-4 text-left ${isDelayed ? 'hover:bg-rose-50' : 'hover:bg-slate-50'}`}><span className={`text-xs text-slate-400 transition ${open ? 'rotate-90' : ''}`}>▶</span><span className="text-sm font-bold text-slate-800">{group.label}</span><span className="hidden text-xs text-slate-400 md:inline">{group.note}</span><span className={`ml-auto rounded-full px-2.5 py-1 text-xs font-bold ${isDelayed ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{group.projects.length}</span></button>{open && <div>{group.projects.length === 0 ? <p className="border-t border-slate-200 px-5 py-5 text-xs text-slate-400">Jelenleg nincs projekt ebben a csoportban.</p> : group.projects.map((project) => <ProjectRow key={project.id} project={project} stage={currentStage(project)} onOpenModule={onOpenModule} onEditProject={onEditProject} onCloseProject={onCloseProject}/>)}</div>}</article>; })}</section>;
 }

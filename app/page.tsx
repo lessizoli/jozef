@@ -520,7 +520,7 @@ export default function Dashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <main className="min-h-screen bg-slate-100 text-slate-800">
       <DashboardHeader
         view={view}
         onViewChange={setView}
@@ -528,7 +528,7 @@ export default function Dashboard() {
         onSignOut={() => void signOut(auth)}
       />
 
-      <div className="mx-auto max-w-7xl space-y-7 px-5 py-6">
+      <div className="mx-auto max-w-[1500px] space-y-7 px-5 py-7">
         {actionError && (
           <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200" role="alert">
             <span>{actionError}</span>
@@ -548,13 +548,13 @@ export default function Dashboard() {
         />
 
         {view === 'projects' ? (
-          <ProjectList
+          <><div><h2 className="text-2xl font-bold tracking-tight text-slate-800">Projektek</h2><p className="mt-1 text-sm text-slate-500">A projektek automatikusan az aktuális munkaszakasz szerint rendezve jelennek meg.</p></div><ProjectList
             projects={projects}
             onCreate={() => setShowCreate(true)}
             onOpenModule={openModule}
             onEditProject={openProjectDetails}
             onCloseProject={requestProjectClose}
-          />
+          /></>
         ) : view === 'calendar' ? (
           <CalendarView
             monthTitle={monthTitle}

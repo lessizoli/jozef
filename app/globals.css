@@ -12,18 +12,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
+  background: #f1f5f9;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Világos Envision felület: a régebbi panelek sötét utility-osztályainak kompatibilis felülírása. */
+body .bg-slate-950, body .bg-slate-950\/60, body .bg-slate-950\/50 { background-color: #f8fafc !important; }
+body .bg-slate-900, body .bg-slate-900\/60, body .bg-slate-900\/50 { background-color: #ffffff !important; }
+body .bg-slate-800 { background-color: #f1f5f9 !important; }
+body .border-slate-800, body .border-slate-700 { border-color: #dbe3ec !important; }
+body .text-slate-100, body .text-slate-200, body .text-slate-300 { color: #334155 !important; }
+body .text-slate-400 { color: #64748b !important; }
+body .text-slate-500 { color: #8290a3 !important; }
+body input, body select, body textarea { color: #334155; }
 
 /* A jobb oldali panelek mindig a ragadós fejléc fölött jelenjenek meg. */
 main > .fixed.inset-0 {

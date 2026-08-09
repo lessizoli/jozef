@@ -1,50 +1,11 @@
+import Link from 'next/link';
 import type { DashboardView } from './types';
 
-type Props = {
-  view: DashboardView;
-  onViewChange: (view: DashboardView) => void;
-  onCreate: () => void;
-  onSignOut: () => void;
-};
-
+type Props = { view: DashboardView; onViewChange: (view: DashboardView) => void; onCreate: () => void; onSignOut: () => void };
 export default function DashboardHeader({ view, onViewChange, onCreate, onSignOut }: Props) {
-  return (
-    <header className="sticky top-0 z-30 border-b border-slate-800 bg-slate-950/95 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-sky-400">Envision CRM</p>
-          <h1 className="mt-1 text-xl font-bold">Projektkezelő</h1>
-        </div>
-        <nav className="flex flex-wrap items-center gap-2" aria-label="Fő navigáció">
-          <button
-            type="button"
-            onClick={() => onViewChange('projects')}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'projects' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-          >
-            Projektek
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewChange('calendar')}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'calendar' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-          >
-            Naptár
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewChange('team')}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold ${view === 'team' ? 'bg-sky-600 text-white' : 'border border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-          >
-            Munkatársak
-          </button>
-          <button type="button" onClick={onCreate} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">
-            + Új érdeklődés
-          </button>
-          <button type="button" onClick={onSignOut} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">
-            Kilépés
-          </button>
-        </nav>
-      </div>
-    </header>
-  );
+  return <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur"><div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-5 px-5 py-3.5">
+    <div className="mr-4 min-w-44"><p className="text-[11px] font-bold uppercase tracking-[.25em] text-sky-600">Envision CRM</p><h1 className="mt-0.5 text-lg font-bold text-slate-800">Projektkezelő</h1></div>
+    <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto lg:order-none lg:w-auto lg:flex-1" aria-label="Fő navigáció"><button type="button" onClick={() => onViewChange('projects')} className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === 'projects' ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50'}`}>Projektek</button><button type="button" onClick={() => onViewChange('calendar')} className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === 'calendar' ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50'}`}>Naptár</button><button type="button" onClick={() => onViewChange('team')} className={`rounded-lg px-3 py-2 text-sm font-semibold ${view === 'team' ? 'bg-sky-50 text-sky-700' : 'text-slate-500 hover:bg-slate-50'}`}>Munkatársak</button><Link href="/dokumentumok" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50">Dokumentumok</Link></nav>
+    <div className="ml-auto flex items-center gap-2"><button type="button" onClick={onCreate} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-500">+ Új projekt</button><button type="button" onClick={onSignOut} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50">Kilépés</button></div>
+  </div></header>;
 }
