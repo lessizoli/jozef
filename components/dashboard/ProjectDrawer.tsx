@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Link from 'next/link';
 import type { ModuleKey, Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
 import ContractEditor from './ContractEditor';
@@ -20,6 +21,7 @@ type Props = {
   quote: QuoteDraft;
   contract: ContractDraft;
   saving: boolean;
+  canEditProject: boolean;
   assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
   onScheduleChange: (schedule: ScheduleDraft) => void;
@@ -32,9 +34,13 @@ type Props = {
   onSaveQuote: () => void;
   onDownloadQuote: () => void;
   onSendQuote: () => void;
+  onAcceptQuote: () => void;
+  onRejectQuote: () => void;
   onSaveContract: () => void;
   onDownloadContract: () => void;
   onSendContract: () => void;
+  onSignContract: () => void;
+  onRejectContract: () => void;
   onUploadSignedContract: (file: File) => void;
   onDownloadSignedContract: () => void;
   onCloseProject: () => void;
@@ -52,6 +58,7 @@ export default function ProjectDrawer({
   quote,
   contract,
   saving,
+  canEditProject,
   assignmentOptions,
   onModuleChange,
   onScheduleChange,
@@ -64,9 +71,13 @@ export default function ProjectDrawer({
   onSaveQuote,
   onDownloadQuote,
   onSendQuote,
+  onAcceptQuote,
+  onRejectQuote,
   onSaveContract,
   onDownloadContract,
   onSendContract,
+  onSignContract,
+  onRejectContract,
   onUploadSignedContract,
   onDownloadSignedContract,
   onCloseProject,
@@ -113,6 +124,9 @@ export default function ProjectDrawer({
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Projektadatok
           </button>
+          <Link href={`/dokumentumok?project=${encodeURIComponent(project.id)}`} className="rounded-lg border border-slate-700 px-3 py-2 text-left text-sm text-slate-400 hover:border-sky-500 hover:text-sky-300">
+            Projektanyagok
+          </Link>
         </div>
 
         {mode === 'module' ? (
@@ -202,6 +216,11 @@ export default function ProjectDrawer({
               onSave={onSaveQuote}
               onDownload={onDownloadQuote}
               onSend={onSendQuote}
+              status={project.modules.quote.status}
+              decisionAt={project.modules.quote.statusChangedAt}
+              canDecide={canEditProject}
+              onAccept={onAcceptQuote}
+              onReject={onRejectQuote}
             />
           )
         ) : mode === 'contract' ? (
@@ -216,7 +235,7 @@ export default function ProjectDrawer({
               clientAddress={project.client.address}
               clientEmail={project.client.email}
               signedDocument={project.contractData?.signedDocument}
-              signed={Boolean(project.contractData?.signedAt)}
+              signed={project.modules.contract.status === 'Aláírva' || Boolean(project.contractData?.signedAt)}
               signedAt={project.contractData?.signedAt}
               signedByName={project.contractData?.signedByName}
               quoteAccepted={project.modules.quote.enabled === false || project.modules.quote.status === 'Elfogadva'}
@@ -226,6 +245,11 @@ export default function ProjectDrawer({
               onSave={onSaveContract}
               onDownload={onDownloadContract}
               onSend={onSendContract}
+              status={project.modules.contract.status}
+              decisionAt={project.modules.contract.statusChangedAt}
+              canDecide={canEditProject}
+              onSign={onSignContract}
+              onReject={onRejectContract}
               onUploadSigned={onUploadSignedContract}
               onDownloadSigned={onDownloadSignedContract}
             />

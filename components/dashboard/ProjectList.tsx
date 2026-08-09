@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { isProjectFinanceOverdue, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleClass, moduleKeys, moduleLabels } from './dashboardConfig';
 
@@ -51,6 +52,12 @@ function ProjectCard({
           >
             {project.closed ? 'Projektadatok megtekintése' : 'Projektadatok módosítása'}
           </button>
+          <Link
+            href={`/dokumentumok?project=${encodeURIComponent(project.id)}`}
+            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-sky-300 hover:bg-slate-800"
+          >
+            Projektanyagok
+          </Link>
           {!project.closed && (
             <button
               type="button"

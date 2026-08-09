@@ -12,7 +12,7 @@ export const moduleLabels: Record<ModuleKey, string> = {
 export const moduleStatuses: Record<ModuleKey, string[]> = {
   survey: ['Folyamatban', 'Kész', 'Csúszás'],
   quote: ['Intézendő', 'Kiküldve', 'Elutasítva', 'Elfogadva', 'Csúszás'],
-  contract: ['Intézendő', 'Kiküldve', 'Aláírva', 'Csúszás'],
+  contract: ['Intézendő', 'Kiküldve', 'Elutasítva', 'Aláírva', 'Csúszás'],
   construction: ['Intézendő', 'Folyamatban', 'Befejezve', 'Csúszás'],
   completion: ['Intézendő', 'Átadásra vár', 'Befejezve', 'Csúszás'],
   finance: ['Intézendő', 'Számlázva', 'Fizetve', 'Késedelem'],
@@ -22,7 +22,7 @@ export const moduleKeys = Object.keys(moduleLabels) as ModuleKey[];
 export const weekdayLabels = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
 
 const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
-const delayedStatuses = ['Csúszás', 'Késedelem'];
+const delayedStatuses = ['Csúszás', 'Késedelem', 'Elutasítva'];
 const activeStatuses = ['Folyamatban', 'Kiküldve', 'Átadásra vár', 'Számlázva'];
 
 export function moduleClass(project: Project, key: ModuleKey) {

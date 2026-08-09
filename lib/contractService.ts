@@ -172,6 +172,7 @@ export async function uploadSignedContract(project: Project, file: File) {
     'modules.contract.status': 'Aláírva',
     'modules.contract.delayed': false,
     'modules.contract.completedAt': serverTimestamp(),
+    'modules.contract.statusChangedAt': serverTimestamp(),
     status: 'Folyamatban',
     lastAction: constructionEnabled
       ? 'Szerződés aláírva, Kivitelezés elindítva'
@@ -182,6 +183,7 @@ export async function uploadSignedContract(project: Project, file: File) {
     updates['modules.construction.status'] = 'Folyamatban';
     updates['modules.construction.delayed'] = false;
     updates['modules.construction.completedAt'] = null;
+    updates['modules.construction.statusChangedAt'] = serverTimestamp();
   }
   await updateDoc(reference, updates);
 }

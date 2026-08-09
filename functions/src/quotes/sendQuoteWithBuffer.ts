@@ -35,6 +35,7 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
     'quoteData.sentAt': new Date(),
     'modules.quote.status': 'Kiküldve',
     'modules.quote.delayed': false,
+    'modules.quote.statusChangedAt': new Date(),
     status: 'Folyamatban',
     lastAction: 'Ajánlat: Kiküldve',
     updatedAt: new Date(),

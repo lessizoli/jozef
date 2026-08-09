@@ -10,6 +10,11 @@ type Props = {
   onSave: () => void;
   onDownload: () => void;
   onSend: () => void;
+  status: string;
+  decisionAt?: unknown;
+  canDecide: boolean;
+  onAccept: () => void;
+  onReject: () => void;
 };
 
 const categoryLabels: Record<QuoteItemCategory, string> = {
@@ -32,7 +37,14 @@ function newItem(): QuoteItem {
   };
 }
 
-export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSave, onDownload, onSend }: Props) {
+function readableDate(value: unknown) {
+  if (!value) return '';
+  const timestamp = value as { toDate?: () => Date };
+  const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(String(value));
+  return Number.isNaN(date.valueOf()) ? '' : date.toLocaleString('hu-HU');
+}
+
+export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSave, onDownload, onSend, status, decisionAt, canDecide, onAccept, onReject }: Props) {
   const totals = useMemo(() => calculateQuoteTotals(draft.items), [draft.items]);
 
   function updateItem(id: string, update: Partial<QuoteItem>) {
@@ -48,6 +60,20 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
 
   return (
     <div className="mt-6 space-y-5">
+      <section className={`rounded-xl border p-4 ${status === 'Elfogadva' ? 'border-emerald-500/40 bg-emerald-500/10' : status === 'Elutasítva' ? 'border-rose-500/40 bg-rose-500/10' : 'border-slate-700 bg-slate-950/60'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Ajánlat állapota</p>
+            <p className={`mt-1 font-bold ${status === 'Elfogadva' ? 'text-emerald-300' : status === 'Elutasítva' ? 'text-rose-300' : 'text-amber-300'}`}>{status}</p>
+            {['Elfogadva', 'Elutasítva'].includes(status) && readableDate(decisionAt) && <p className="mt-1 text-xs text-slate-400">Döntés: {readableDate(decisionAt)}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" disabled={saving || !canDecide || status === 'Elutasítva'} onClick={onReject} className="rounded-lg border border-rose-500 px-3 py-2 text-sm font-bold text-rose-300 hover:bg-rose-500/10 disabled:opacity-40">Elutasítva</button>
+            <button type="button" disabled={saving || !canDecide || status === 'Elfogadva'} onClick={onAccept} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold hover:bg-emerald-500 disabled:opacity-40">Elfogadva</button>
+          </div>
+        </div>
+        {!canDecide && <p className="mt-3 text-xs text-amber-300">A döntés rögzítéséhez projektmódosítási jogosultság szükséges.</p>}
+      </section>
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-500">Ajánlatszám</label>

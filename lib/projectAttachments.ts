@@ -12,7 +12,6 @@ import {
 import {
   deleteObject,
   getBlob,
-  getDownloadURL,
   ref,
   uploadBytes,
 } from 'firebase/storage';
@@ -31,6 +30,7 @@ export type ProjectAttachment = {
   contentType?: string;
   size?: number;
   createdBy?: string;
+  createdByName?: string;
   createdAt?: unknown;
   moduleKey?: ModuleKey | 'general';
   phaseId?: string | null;
@@ -40,6 +40,8 @@ export type ProjectAttachment = {
 type UserProfile = {
   companyId?: string | null;
   active?: boolean;
+  fullName?: string;
+  email?: string;
 };
 
 async function getCompanyId() {
@@ -53,7 +55,11 @@ async function getCompanyId() {
   if (profile.active === false) throw new Error('A felhasználói fiók inaktív.');
   if (!profile.companyId) throw new Error('A felhasználóhoz nincs cég rendelve.');
 
-  return { companyId: profile.companyId, userId: user.uid };
+  return {
+    companyId: profile.companyId,
+    userId: user.uid,
+    userName: profile.fullName ?? user.displayName ?? profile.email ?? user.email ?? 'Munkatárs',
+  };
 }
 
 function attachmentsCollection(companyId: string, projectId: string) {
@@ -92,13 +98,14 @@ export async function addProjectNote(projectId: string, text: string, moduleKey:
   const cleanText = text.trim();
   if (!cleanText) throw new Error('A jegyzet nem lehet üres.');
 
-  const { companyId, userId } = await getCompanyId();
+  const { companyId, userId, userName } = await getCompanyId();
   await addDoc(attachmentsCollection(companyId, projectId), {
     type: 'note',
     text: cleanText,
     moduleKey,
     phaseId,
     createdBy: userId,
+    createdByName: userName,
     createdAt: serverTimestamp(),
   });
 }
@@ -113,7 +120,7 @@ export async function uploadProjectImage(projectId: string, file: File, moduleKe
     throw new Error('A kép legfeljebb 15 MB lehet.');
   }
 
-  const { companyId, userId } = await getCompanyId();
+  const { companyId, userId, userName } = await getCompanyId();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `companies/${companyId}/projects/${projectId}/images/${crypto.randomUUID()}-${safeName}`;
   const storageReference = ref(storage, storagePath);
@@ -127,18 +134,16 @@ export async function uploadProjectImage(projectId: string, file: File, moduleKe
     },
   });
 
-  const downloadURL = await getDownloadURL(storageReference);
-
   await addDoc(attachmentsCollection(companyId, projectId), {
     type: 'image',
     fileName: file.name,
-    downloadURL,
     storagePath,
     contentType: file.type,
     size: file.size,
     moduleKey,
     phaseId,
     createdBy: userId,
+    createdByName: userName,
     createdAt: serverTimestamp(),
   });
 }
@@ -150,7 +155,7 @@ export async function uploadProjectDocument(
 ) {
   const maxSize = 25 * 1024 * 1024;
   if (file.size > maxSize) throw new Error('A dokumentum legfeljebb 25 MB lehet.');
-  const { companyId, userId } = await getCompanyId();
+  const { companyId, userId, userName } = await getCompanyId();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `companies/${companyId}/projects/${projectId}/documents/${crypto.randomUUID()}-${safeName}`;
   await uploadBytes(ref(storage, storagePath), file, {
@@ -167,6 +172,7 @@ export async function uploadProjectDocument(
     moduleKey: input.moduleKey,
     phaseId: input.phaseId,
     createdBy: userId,
+    createdByName: userName,
     createdAt: serverTimestamp(),
   });
 }
