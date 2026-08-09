@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { moduleLabels } from '@/components/dashboard/dashboardConfig';
 import { openConstructionPhoto, subscribeToConstructionEntries, type ConstructionEntry } from '@/lib/constructionService';
 import { downloadProjectContract, downloadSignedContract } from '@/lib/contractService';
@@ -179,8 +179,8 @@ export default function ProjectDocumentsPage() {
     if (item.kind === 'invoice' && item.storagePath) return downloadProjectInvoice(item.storagePath, item.fileName ?? 'szamla');
   }
 
-  return <main className="min-h-screen bg-slate-950 px-5 py-6 text-slate-100"><div className="mx-auto max-w-7xl space-y-6">
-    <header className="flex flex-col gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[.22em] text-sky-400">Envision CRM</p><h1 className="mt-1 text-2xl font-bold">Projektanyagok</h1><p className="mt-1 text-sm text-slate-500">A projekt összes jegyzete, képe, dokumentuma és automatikus modulanyaga egy helyen.</p></div><Link href="/" className="rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold">← Projektek</Link></header>
+  return <main className="min-h-screen bg-slate-50 text-slate-900"><DashboardHeader view="documents"/><div className="mx-auto max-w-7xl space-y-6 px-5 py-6">
+    <div><h1 className="text-2xl font-bold">Projektanyagok</h1><p className="mt-1 text-sm text-slate-500">A projekt összes jegyzete, képe, dokumentuma és automatikus modulanyaga egy helyen.</p></div>
     <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 lg:grid-cols-3">
       <label className="text-xs font-semibold uppercase text-slate-500">Projekt<select value={projectId} onChange={(event) => { setAttachments([]); setConstructionEntries([]); setProjectId(event.target.value); }} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">{projects.length === 0 && <option value="">Nincs projekt</option>}{projects.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.title}</option>)}</select></label>
       <label className="text-xs font-semibold uppercase text-slate-500">Új elem helye<select value={scope} onChange={(event) => { setScope(event.target.value as Scope); setPhaseId(''); }} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">{scopes.map((item) => <option key={item} value={item}>{scopeLabel(item)}</option>)}</select></label>

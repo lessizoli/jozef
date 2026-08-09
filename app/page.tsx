@@ -154,6 +154,16 @@ export default function Dashboard() {
   const [userRole, setUserRole] = useState<MemberRole | 'superadmin' | 'admin'>('installer');
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionMatrix>(defaultPermissionMatrix);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      const requested = params.get('view');
+      if (requested === 'calendar' || requested === 'team') setView(requested);
+      if (params.get('create') === '1') setShowCreate(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   useEffect(() => subscribeToCompanyProjects('', (items) => {
     setProjects(items);
     setSelectedProject((current) => current ? items.find((item) => item.id === current.id) ?? null : null);
