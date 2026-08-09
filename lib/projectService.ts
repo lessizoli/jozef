@@ -21,6 +21,7 @@ export type ProjectModule = {
   assigneeId?: string | null;
   assigneeType?: 'member' | 'team' | null;
   completedAt?: unknown;
+  statusChangedAt?: unknown;
   delayed?: boolean;
 };
 
@@ -165,7 +166,7 @@ const moduleLabels: Record<ModuleKey, string> = {
 };
 
 const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
-const delayedStatuses = ['Csúszás', 'Késedelem'];
+const delayedStatuses = ['Csúszás', 'Késedelem', 'Elutasítva'];
 
 const completedStatusByModule: Record<ModuleKey, string> = {
   survey: 'Kész',
@@ -238,6 +239,7 @@ function withModuleDefaults(module: ProjectModule | undefined, status: string, e
     assigneeId: module?.assigneeId ?? null,
     assigneeType: module?.assigneeType ?? null,
     completedAt: module?.completedAt,
+    statusChangedAt: module?.statusChangedAt,
     delayed: module?.delayed ?? false,
   };
 }
@@ -521,11 +523,21 @@ export async function updateProjectModuleStatus(
     [`modules.${moduleKey}.status`]: status,
     [`modules.${moduleKey}.delayed`]: delayed,
     [`modules.${moduleKey}.completedAt`]: completed ? serverTimestamp() : null,
+    [`modules.${moduleKey}.statusChangedAt`]: serverTimestamp(),
     status: delayed ? 'Csúszás' : 'Folyamatban',
     closed: false,
     lastAction: `${moduleLabels[moduleKey]}: ${status}`,
     updatedAt: serverTimestamp(),
   };
+
+  if (moduleKey === 'contract' && status === 'Aláírva') {
+    if (!project.contractData?.contractNumber) {
+      throw new Error('Az Aláírva jelölés előtt mentsd el a szerződést.');
+    }
+    updates['contractData.signedAt'] = serverTimestamp();
+    updates['contractData.signedByUid'] = auth.currentUser?.uid ?? '';
+    updates['contractData.signedByName'] = auth.currentUser?.displayName ?? auth.currentUser?.email ?? 'Munkatárs';
+  }
 
   if (status !== 'Intézendő') {
     moduleOrder.slice(0, selectedIndex).forEach((key) => {

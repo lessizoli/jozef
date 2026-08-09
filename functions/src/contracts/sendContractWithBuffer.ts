@@ -38,6 +38,7 @@ export const sendContractWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, S
     'contractData.sentAt': new Date(),
     'modules.contract.status': 'Kiküldve',
     'modules.contract.delayed': false,
+    'modules.contract.statusChangedAt': new Date(),
     status: 'Folyamatban',
     lastAction: 'Szerződés: Kiküldve',
     updatedAt: new Date(),

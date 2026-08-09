@@ -380,6 +380,19 @@ export default function Dashboard() {
     });
   }
 
+  async function decideSelectedQuote(status: 'Elfogadva' | 'Elutasítva') {
+    if (!selectedProject || !quoteDraft) return;
+    const consequence = status === 'Elfogadva'
+      ? 'A Szerződés fázis automatikusan elindul.'
+      : 'A projekt nem lép tovább a Szerződés fázisba.';
+    if (!window.confirm(`Biztosan ${status.toLocaleLowerCase('hu-HU')} állapotú az ajánlat? ${consequence}`)) return;
+    await runAction(async () => {
+      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await updateProjectModuleStatus(selectedProject.id, 'quote', status);
+      setActionMessage(status === 'Elfogadva' ? 'Az ajánlat elfogadva, a Szerződés elindult.' : 'Az ajánlat elutasítva.');
+    });
+  }
+
   async function saveSelectedContract() {
     if (!selectedProject || !contractDraft) return;
     await runAction(async () => {
@@ -403,6 +416,19 @@ export default function Dashboard() {
       await saveProjectContract(selectedProject.id, contractDraft);
       await sendProjectContract(selectedProject.id);
       setActionMessage(`A szerződés elküldve: ${selectedProject.client.email}`);
+    });
+  }
+
+  async function decideSelectedContract(status: 'Aláírva' | 'Elutasítva') {
+    if (!selectedProject || !contractDraft) return;
+    const consequence = status === 'Aláírva'
+      ? 'A Kivitelezés fázis automatikusan elindul.'
+      : 'A projekt nem lép tovább a Kivitelezés fázisba.';
+    if (!window.confirm(`Biztosan ${status.toLocaleLowerCase('hu-HU')} állapotú a szerződés? ${consequence}`)) return;
+    await runAction(async () => {
+      await saveProjectContract(selectedProject.id, contractDraft);
+      await updateProjectModuleStatus(selectedProject.id, 'contract', status);
+      setActionMessage(status === 'Aláírva' ? 'A szerződés aláírva, a Kivitelezés elindult.' : 'A szerződés elutasítva.');
     });
   }
 
@@ -587,6 +613,7 @@ export default function Dashboard() {
           quote={quoteDraft}
           contract={contractDraft}
           saving={saving}
+          canEditProject={rolePermissions.editProjects}
           assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}
           onScheduleChange={setScheduleDraft}
@@ -599,9 +626,13 @@ export default function Dashboard() {
           onSaveQuote={saveSelectedQuote}
           onDownloadQuote={downloadSelectedQuote}
           onSendQuote={sendSelectedQuote}
+          onAcceptQuote={() => { void decideSelectedQuote('Elfogadva'); }}
+          onRejectQuote={() => { void decideSelectedQuote('Elutasítva'); }}
           onSaveContract={saveSelectedContract}
           onDownloadContract={downloadSelectedContract}
           onSendContract={sendSelectedContract}
+          onSignContract={() => { void decideSelectedContract('Aláírva'); }}
+          onRejectContract={() => { void decideSelectedContract('Elutasítva'); }}
           onUploadSignedContract={uploadSelectedSignedContract}
           onDownloadSignedContract={downloadSelectedSignedContract}
           onCloseProject={confirmCloseProject}

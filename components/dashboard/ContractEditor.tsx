@@ -20,6 +20,11 @@ type Props = {
   onSend: () => void;
   onUploadSigned: (file: File) => void;
   onDownloadSigned: () => void;
+  status: string;
+  decisionAt?: unknown;
+  canDecide: boolean;
+  onSign: () => void;
+  onReject: () => void;
 };
 
 const inputClass = 'w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:cursor-not-allowed disabled:opacity-60';
@@ -63,6 +68,11 @@ export default function ContractEditor({
   onSend,
   onUploadSigned,
   onDownloadSigned,
+  status,
+  decisionAt,
+  canDecide,
+  onSign,
+  onReject,
 }: Props) {
   const disabled = saving || signed;
 
@@ -74,6 +84,21 @@ export default function ContractEditor({
 
   return (
     <div className="mt-6 space-y-5">
+      <section className={`rounded-xl border p-4 ${status === 'Aláírva' ? 'border-emerald-500/40 bg-emerald-500/10' : status === 'Elutasítva' ? 'border-rose-500/40 bg-rose-500/10' : 'border-slate-700 bg-slate-950/60'}`}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-500">Szerződés állapota</p>
+            <p className={`mt-1 font-bold ${status === 'Aláírva' ? 'text-emerald-300' : status === 'Elutasítva' ? 'text-rose-300' : 'text-amber-300'}`}>{status}</p>
+            {['Aláírva', 'Elutasítva'].includes(status) && readableDate(decisionAt) && <p className="mt-1 text-xs text-slate-400">Döntés: {readableDate(decisionAt)}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" disabled={saving || !canDecide || signed || status === 'Elutasítva'} onClick={onReject} className="rounded-lg border border-rose-500 px-3 py-2 text-sm font-bold text-rose-300 hover:bg-rose-500/10 disabled:opacity-40">Elutasítva</button>
+            <button type="button" disabled={saving || !canDecide || signed || !hasSavedContract} onClick={onSign} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold hover:bg-emerald-500 disabled:opacity-40">Aláírva</button>
+          </div>
+        </div>
+        {!hasSavedContract && !signed && <p className="mt-3 text-xs text-amber-300">Az Aláírva jelölés előtt mentsd el a szerződést.</p>}
+        {!canDecide && <p className="mt-3 text-xs text-amber-300">A döntés rögzítéséhez projektmódosítási jogosultság szükséges.</p>}
+      </section>
       {signed && (
         <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200">
           <p className="font-bold">A szerződés aláírt állapotban van.</p>
