@@ -5,9 +5,10 @@ import ContractEditor from './ContractEditor';
 import QuoteEditor from './QuoteEditor';
 import ConstructionEditor from './ConstructionEditor';
 import CompletionEditor from './CompletionEditor';
+import FinanceEditor from './FinanceEditor';
 import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
 
-export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'construction' | 'completion' | 'details';
+export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance' | 'details';
 
 type Props = {
   project: Project;
@@ -90,7 +91,7 @@ export default function ProjectDrawer({
           <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label="Bezárás">✕</button>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-6">
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <button type="button" onClick={() => setMode('module')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'module' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Folyamat kezelése
           </button>
@@ -105,6 +106,9 @@ export default function ProjectDrawer({
           </button>
           <button type="button" disabled={!project.modules.completion.enabled} onClick={() => setMode('completion')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'completion' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
             Befejezés
+          </button>
+          <button type="button" disabled={!project.modules.finance.enabled} onClick={() => setMode('finance')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'finance' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
+            Pénzügy
           </button>
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
             Projektadatok
@@ -125,6 +129,7 @@ export default function ProjectDrawer({
                     if (key === 'contract') setMode('contract');
                     if (key === 'construction') setMode('construction');
                     if (key === 'completion') setMode('completion');
+                    if (key === 'finance') setMode('finance');
                   }}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}
                 >
@@ -236,6 +241,12 @@ export default function ProjectDrawer({
             <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">A lezárt projekt átadási adatai már nem módosíthatók.</div>
           ) : (
             <CompletionEditor project={project} saving={saving} onRun={onConstructionAction} />
+          )
+        ) : mode === 'finance' ? (
+          project.closed ? (
+            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">A lezárt projekt pénzügyi adatai már nem módosíthatók.</div>
+          ) : (
+            <FinanceEditor project={project} saving={saving} onRun={onConstructionAction} />
           )
         ) : (
           <form onSubmit={onSaveDetails} className="mt-6 space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">

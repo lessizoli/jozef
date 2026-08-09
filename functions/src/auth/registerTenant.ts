@@ -66,11 +66,11 @@ export const registerTenant = onCall(async (request) => {
 
     await companyRef.collection('settings').doc('permissions').set({
       roles: {
-        company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: true },
-        project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageTeams: true, manageMembers: false },
-        surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
-        installer: { createProjects: false, editProjects: false, manageDocuments: true, manageTeams: false, manageMembers: false },
-        finance: { createProjects: false, editProjects: false, manageDocuments: false, manageTeams: false, manageMembers: false },
+        company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: true },
+        project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: false },
+        surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
+        installer: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
+        finance: { createProjects: false, editProjects: false, manageDocuments: false, manageFinance: true, manageTeams: false, manageMembers: false },
       },
       createdAt: new Date(),
     });
