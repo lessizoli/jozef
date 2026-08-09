@@ -89,7 +89,8 @@ export default function ProjectDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onDismiss}>
-      <aside className="h-full w-full max-w-md overflow-y-auto border-l border-slate-700 bg-slate-900 p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+      <aside className={`h-full w-full overflow-y-auto bg-slate-900 p-4 shadow-2xl sm:p-6 ${mode === 'quote' ? 'max-w-none' : 'max-w-md border-l border-slate-700'}`} onClick={(event) => event.stopPropagation()}>
+        <div className={mode === 'quote' ? 'mx-auto max-w-7xl' : ''}>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -320,6 +321,7 @@ export default function ProjectDrawer({
             )}
           </div>
         )}
+        </div>
       </aside>
     </div>
   );

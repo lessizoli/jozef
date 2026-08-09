@@ -41,6 +41,10 @@ export async function uploadConstructionPhoto(projectId: string, file: File) {
 export async function openConstructionPhoto(storagePath: string) {
   const blob = await getBlob(ref(storage, storagePath)); const url = URL.createObjectURL(blob); window.open(url, '_blank', 'noopener,noreferrer'); window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
+export async function getConstructionPhotoPreview(storagePath: string) {
+  const blob = await getBlob(ref(storage, storagePath));
+  return URL.createObjectURL(blob);
+}
 export async function setConstructionRunning(projectId: string) {
   const { companyId } = await context();
   await updateDoc(doc(db, 'companies', companyId, 'projects', projectId), { 'modules.construction.status': 'Folyamatban', 'modules.construction.delayed': false, 'modules.construction.completedAt': null, 'constructionData.startedAt': serverTimestamp(), status: 'Folyamatban', closed: false, lastAction: 'Kivitelezés elindítva', updatedAt: serverTimestamp() });

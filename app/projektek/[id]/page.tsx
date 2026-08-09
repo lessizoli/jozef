@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { moduleKeys, moduleLabels } from '@/components/dashboard/dashboardConfig';
-import { openConstructionPhoto, subscribeToConstructionEntries, type ConstructionEntry } from '@/lib/constructionService';
-import { openProtectedAttachment, subscribeToProjectAttachments, type ProjectAttachment } from '@/lib/projectAttachments';
+import { getConstructionPhotoPreview, openConstructionPhoto, subscribeToConstructionEntries, type ConstructionEntry } from '@/lib/constructionService';
+import { getProtectedAttachmentPreview, openProtectedAttachment, subscribeToProjectAttachments, type ProjectAttachment } from '@/lib/projectAttachments';
 import { isProjectFinanceOverdue, subscribeToCompanyProjects, type Project } from '@/lib/projectService';
 
 const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
@@ -26,6 +27,25 @@ function Info({ label, value }: { label: string; value?: React.ReactNode }) {
 
 function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-5"><h2 className="text-lg font-bold text-slate-900">{title}</h2>{note && <p className="mt-1 text-sm text-slate-500">{note}</p>}</div>{children}</section>;
+}
+
+function ProtectedThumbnail({ title, load, onOpen }: { title: string; load: () => Promise<string>; onOpen: () => void }) {
+  const [source, setSource] = useState('');
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let active = true;
+    let objectUrl = '';
+    void load().then((url) => {
+      if (!active) { if (url.startsWith('blob:')) URL.revokeObjectURL(url); return; }
+      objectUrl = url;
+      setSource(url);
+    }).catch(() => { if (active) setFailed(true); });
+    return () => { active = false; if (objectUrl.startsWith('blob:')) URL.revokeObjectURL(objectUrl); };
+  }, [load]);
+  return <button type="button" onClick={onOpen} className="group relative aspect-[4/3] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 text-left shadow-sm hover:border-sky-400">
+    {source ? <Image src={source} alt={title} fill unoptimized className="object-cover transition duration-300 group-hover:scale-105"/> : <div className="grid h-full place-items-center px-4 text-center text-xs text-slate-400">{failed ? 'Az előnézet nem tölthető be' : 'Kép betöltése…'}</div>}
+    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent px-3 pb-3 pt-10"><p className="truncate text-xs font-semibold text-white">{title}</p></div>
+  </button>;
 }
 
 export default function FullProjectPage() {
@@ -78,7 +98,7 @@ export default function FullProjectPage() {
 
     <Section title="Képek, feljegyzések és dokumentumok" note={`${images.length + constructionPhotos.length} kép · ${notes.length + constructionLogs.length} feljegyzés · ${documents.length} dokumentum`}>
       <div className="grid gap-5 lg:grid-cols-3">
-        <div><h3 className="font-bold text-slate-800">Képek</h3><div className="mt-3 space-y-2">{images.map((item) => <button key={item.id} onClick={() => void openProtectedAttachment(item)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-sky-300"><span className="truncate">{item.fileName || 'Projektkép'}</span><span className="text-xs font-bold text-sky-700">Megnyitás</span></button>)}{constructionPhotos.map((item) => <button key={item.id} disabled={!item.storagePath} onClick={() => item.storagePath && void openConstructionPhoto(item.storagePath)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-sky-300 disabled:opacity-50"><span className="truncate">{item.fileName || 'Helyszíni kép'}</span><span className="text-xs font-bold text-sky-700">Megnyitás</span></button>)}{images.length + constructionPhotos.length === 0 && <p className="text-sm text-slate-400">Nincs feltöltött kép.</p>}</div></div>
+        <div><h3 className="font-bold text-slate-800">Képek</h3><div className="mt-3 grid grid-cols-2 gap-3">{images.map((item) => <ProtectedThumbnail key={item.id} title={item.fileName || 'Projektkép'} load={() => getProtectedAttachmentPreview(item)} onOpen={() => void openProtectedAttachment(item)}/>)}{constructionPhotos.map((item) => item.storagePath && <ProtectedThumbnail key={item.id} title={item.fileName || 'Helyszíni kép'} load={() => getConstructionPhotoPreview(item.storagePath!)} onOpen={() => void openConstructionPhoto(item.storagePath!)}/>)}{images.length + constructionPhotos.length === 0 && <p className="col-span-2 text-sm text-slate-400">Nincs feltöltött kép.</p>}</div></div>
         <div><h3 className="font-bold text-slate-800">Feljegyzések</h3><div className="mt-3 space-y-2">{[...notes.map((item) => ({ id: item.id, text: item.text, date: item.createdAt })), ...constructionLogs.map((item) => ({ id: item.id, text: item.text, date: item.createdAt }))].map((item) => <article key={item.id} className="rounded-lg border border-slate-200 p-3"><p className="whitespace-pre-wrap text-sm text-slate-700">{item.text}</p><p className="mt-2 text-[11px] text-slate-400">{readableDate(item.date)}</p></article>)}{notes.length + constructionLogs.length === 0 && <p className="text-sm text-slate-400">Nincs feljegyzés.</p>}</div></div>
         <div><h3 className="font-bold text-slate-800">Dokumentumok</h3><div className="mt-3 space-y-2">{documents.map((item) => <button key={item.id} onClick={() => void openProtectedAttachment(item)} className="flex w-full items-center justify-between rounded-lg border border-slate-200 p-3 text-left text-sm hover:border-sky-300"><span className="min-w-0"><span className="block truncate font-semibold">{item.title || item.fileName}</span><span className="text-xs text-slate-400">{item.moduleKey ? (item.moduleKey === 'general' ? 'Általános' : moduleLabels[item.moduleKey]) : 'Általános'}</span></span><span className="ml-3 text-xs font-bold text-sky-700">Megnyitás</span></button>)}{project.contractData?.signedDocument && <div className="rounded-lg border border-slate-200 p-3 text-sm"><p className="font-semibold">{project.contractData.signedDocument.fileName}</p><p className="mt-1 text-xs text-slate-400">Aláírt szerződés</p></div>}{documents.length === 0 && !project.contractData?.signedDocument && <p className="text-sm text-slate-400">Nincs feltöltött dokumentum.</p>}</div></div>
       </div>

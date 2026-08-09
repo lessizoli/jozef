@@ -188,6 +188,12 @@ export async function openProtectedAttachment(attachment: ProjectAttachment) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+export async function getProtectedAttachmentPreview(attachment: ProjectAttachment) {
+  if (!attachment.storagePath) return attachment.downloadURL ?? '';
+  const blob = await getBlob(ref(storage, attachment.storagePath));
+  return URL.createObjectURL(blob);
+}
+
 export async function deleteProjectAttachment(
   projectId: string,
   attachment: ProjectAttachment,
