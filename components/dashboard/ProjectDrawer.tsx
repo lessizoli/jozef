@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
-import type { ModuleKey, Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
 import ContractEditor from './ContractEditor';
 import QuoteEditor from './QuoteEditor';
@@ -160,7 +160,7 @@ export default function ProjectDrawer({
               <form onSubmit={onSaveSchedule} className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
                 <p className="text-xs uppercase tracking-wider text-slate-500">Kiválasztott modul</p>
                 <h3 className="mt-1 text-lg font-bold">{moduleLabels[selectedModule]}</h3>
-                <p className="mt-2 text-sm text-slate-400">Jelenlegi státusz: <span className="font-semibold text-slate-200">{project.modules[selectedModule].status}</span></p>
+                <p className="mt-2 text-sm text-slate-400">Jelenlegi státusz: <span className="font-semibold text-slate-200">{getProjectModuleDisplayStatus(project, selectedModule)}</span></p>
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Dátum</label>
@@ -217,7 +217,7 @@ export default function ProjectDrawer({
               onSave={onSaveQuote}
               onDownload={onDownloadQuote}
               onSend={onSendQuote}
-              status={project.modules.quote.status}
+              status={getProjectModuleDisplayStatus(project, 'quote')}
               decisionAt={project.modules.quote.statusChangedAt}
               canDecide={canEditProject}
               onAccept={onAcceptQuote}
@@ -246,7 +246,7 @@ export default function ProjectDrawer({
               onSave={onSaveContract}
               onDownload={onDownloadContract}
               onSend={onSendContract}
-              status={project.modules.contract.status}
+              status={getProjectModuleDisplayStatus(project, 'contract')}
               decisionAt={project.modules.contract.statusChangedAt}
               canDecide={canEditProject}
               onSign={onSignContract}

@@ -1,4 +1,4 @@
-import { isProjectFinanceOverdue, isProjectModuleOverdue, type ModuleKey, type Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, type ModuleKey, type Project } from '@/lib/projectService';
 
 export const moduleLabels: Record<ModuleKey, string> = {
   survey: 'Felmérés',
@@ -30,16 +30,14 @@ export function moduleClass(project: Project, key: ModuleKey) {
   if (project.closed || !projectModule.enabled) {
     return 'border-slate-700 bg-slate-900 text-slate-600 cursor-not-allowed';
   }
-  if ((key === 'finance' && isProjectFinanceOverdue(project)) || isProjectModuleOverdue(projectModule)) {
-    return 'border-rose-500 bg-rose-500/20 text-rose-200';
-  }
-  if (completedStatuses.includes(projectModule.status)) {
+  const displayStatus = getProjectModuleDisplayStatus(project, key);
+  if (completedStatuses.includes(displayStatus)) {
     return 'border-emerald-500 bg-emerald-500/20 text-emerald-200';
   }
-  if (delayedStatuses.includes(projectModule.status)) {
+  if (delayedStatuses.includes(displayStatus)) {
     return 'border-rose-500 bg-rose-500/20 text-rose-200';
   }
-  if (activeStatuses.includes(projectModule.status)) {
+  if (activeStatuses.includes(displayStatus)) {
     return 'border-amber-500 bg-amber-500/20 text-amber-100';
   }
   return 'border-slate-600 bg-slate-800 text-slate-300';
