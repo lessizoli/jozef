@@ -26,7 +26,7 @@ import { auth } from '@/lib/firebase';
 import {
   closeProject,
   createNewInquiry,
-  isProjectFinanceOverdue,
+  isProjectDelayed,
   type ModuleKey,
   type Project,
   subscribeToCompanyProjects,
@@ -198,7 +198,7 @@ export default function Dashboard() {
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.closed), [projects]);
   const delayedCount = useMemo(
-    () => activeProjects.filter((project) => project.status === 'Csúszás' || isProjectFinanceOverdue(project)).length,
+    () => activeProjects.filter((project) => isProjectDelayed(project)).length,
     [activeProjects],
   );
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
