@@ -1,7 +1,7 @@
 'use client';
 
 import { signOut } from 'firebase/auth';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import CalendarDialog from '@/components/dashboard/CalendarDialog';
 import CalendarView from '@/components/dashboard/CalendarView';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
@@ -125,6 +125,7 @@ function createEmptyContract(project: Project, defaults?: Project['contractData'
 }
 
 type DrawerIntent = ProjectDrawerMode | 'close';
+type ProjectModuleDeepLink = { projectId: string; moduleKey: ModuleKey };
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'A művelet nem sikerült.';
@@ -153,6 +154,7 @@ export default function Dashboard() {
   const [canManageTeam, setCanManageTeam] = useState(false);
   const [userRole, setUserRole] = useState<MemberRole | 'superadmin' | 'admin'>('installer');
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionMatrix>(defaultPermissionMatrix);
+  const [projectModuleDeepLink, setProjectModuleDeepLink] = useState<ProjectModuleDeepLink | null>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -160,6 +162,11 @@ export default function Dashboard() {
       const requested = params.get('view');
       if (requested === 'calendar' || requested === 'team') setView(requested);
       if (params.get('create') === '1') setShowCreate(true);
+      const projectId = params.get('project');
+      const moduleKey = params.get('module');
+      if (projectId && moduleKey && moduleKeys.includes(moduleKey as ModuleKey)) {
+        setProjectModuleDeepLink({ projectId, moduleKey: moduleKey as ModuleKey });
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -339,6 +346,29 @@ export default function Dashboard() {
     loadContractDraft(project);
     setSelectedProject(project);
   }
+
+  const openModuleFromDeepLink = useEffectEvent(openModule);
+
+  useEffect(() => {
+    if (!projectModuleDeepLink || projects.length === 0) return;
+    const timer = window.setTimeout(() => {
+      const project = projects.find((item) => item.id === projectModuleDeepLink.projectId);
+      if (!project) {
+        setActionError('A hivatkozott projekt nem található.');
+        setProjectModuleDeepLink(null);
+        return;
+      }
+      if (project.closed || !project.modules[projectModuleDeepLink.moduleKey].enabled) {
+        setActionError('Ez a projektmodul jelenleg nem szerkeszthető.');
+        setProjectModuleDeepLink(null);
+        return;
+      }
+      openModuleFromDeepLink(project, projectModuleDeepLink.moduleKey);
+      setProjectModuleDeepLink(null);
+      window.history.replaceState(null, '', window.location.pathname);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [projectModuleDeepLink, projects]);
 
   function openProjectDetails(project: Project) {
     setActionError('');
