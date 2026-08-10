@@ -120,6 +120,13 @@ export interface Project {
     phone: string;
     address: string;
   };
+  surveyData?: {
+    customerNeeds: string;
+    siteConditions: string;
+    measurements: string;
+    notes: string;
+    updatedAt?: unknown;
+  };
   quoteData?: QuoteData;
   contractData?: ContractData;
   constructionData?: { phases: import('./constructionService').ConstructionPhase[]; startedAt?: unknown; finishedAt?: unknown };
@@ -383,6 +390,13 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       phone: '',
       address: '',
     },
+    surveyData: data.surveyData && typeof data.surveyData === 'object' ? {
+      customerNeeds: stringValue((data.surveyData as Record<string, unknown>).customerNeeds),
+      siteConditions: stringValue((data.surveyData as Record<string, unknown>).siteConditions),
+      measurements: stringValue((data.surveyData as Record<string, unknown>).measurements),
+      notes: stringValue((data.surveyData as Record<string, unknown>).notes),
+      updatedAt: (data.surveyData as Record<string, unknown>).updatedAt,
+    } : undefined,
     quoteData: normalizeQuoteData(data.quoteData, code),
     contractData: normalizeContractData(data.contractData, code),
     constructionData: data.constructionData && typeof data.constructionData === 'object' ? {
@@ -603,6 +617,18 @@ export async function updateProjectModuleStatus(
   }
 
   await updateDoc(projectReference, updates);
+}
+
+export async function saveProjectSurvey(
+  projectId: string,
+  survey: { customerNeeds: string; siteConditions: string; measurements: string; notes: string },
+) {
+  const companyId = await getAuthenticatedCompanyId();
+  await updateDoc(companyProjectDocument(companyId, projectId), {
+    surveyData: { ...survey, updatedAt: serverTimestamp() },
+    lastAction: 'Felmérési űrlap mentve',
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function updateProjectModuleSchedule(

@@ -65,6 +65,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Kiegészítő modulok alapértelmezett inaktiválása az alapcsomagos új projekteknél
 - [x] Többcéges, companyId alapján leválasztott adatszerkezet
 - [x] Projektlista és projektkártyák
+- [x] A dashboard felesleges összesítőkártyáinak eltávolítása
 - [x] Világos, modern alkalmazásmegjelenés
 - [x] Projektek összecsukható munkaszakasz-csoportokban
 - [x] Kiemelt, munkaszakasztól független „Csúszásban” projektcsoport
@@ -75,6 +76,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Stabil, soron belül kinyíló gyorsműveleti panel mobil- és rövid listás nézethez
 - [x] Teljes projektlap alapadatokkal, modulfolyamattal, képekkel, feljegyzésekkel és dokumentumokkal
 - [x] Teljes képernyős árajánlat-szerkesztő
+- [x] Egységes alkalmazásfejléc és főmenü a teljes képernyős Ajánlat nézetben
 - [x] Védetten betöltött, kattintható képbélyegképek a teljes projektlapon
 - [x] Egységes vízszintes alkalmazásfejléc a dashboardon, dokumentumtárban és projektlapon
 - [x] Világos naptárnézet olvasható, kontrasztos eseményfeliratokkal
@@ -83,6 +85,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] További vállalkozás biztonságos létrehozása meglévő bejelentkezésből
 - [x] Meglévő Envision-felhasználó meghívása további céghez
 - [x] Projektadatok módosítása és projekt lezárása
+- [x] Menthető helyszíni felmérési űrlap közvetlenül a Felmérés gyorsmenüből
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
 - [x] Projektjegyzetek és képfeltöltés
@@ -193,7 +196,7 @@ Ezek nem blokkolják az alaptermék elkészültét:
 
 ## Legutóbbi kiadási állapot
 
-- GitHub `main`: PR #9 – Unify delayed module status display
+- GitHub `main`: naprakész a legutóbbi egyesített funkció-PR-rel
 - Firestore rules: telepítve az `envision-cmr` projektbe
 - Storage rules: telepítve az `envision-cmr` projektbe
 - Lint: sikeres

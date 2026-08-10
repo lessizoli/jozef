@@ -19,6 +19,13 @@ export type ProjectDetailsDraft = {
   address: string;
 };
 
+export type SurveyDraft = {
+  customerNeeds: string;
+  siteConditions: string;
+  measurements: string;
+  notes: string;
+};
+
 export type ScheduleDraft = {
   date: string;
   time: string;

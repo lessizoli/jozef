@@ -5,7 +5,6 @@ import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import CalendarDialog from '@/components/dashboard/CalendarDialog';
 import CalendarView from '@/components/dashboard/CalendarView';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
-import DashboardStats from '@/components/dashboard/DashboardStats';
 import InquiryDrawer from '@/components/dashboard/InquiryDrawer';
 import ProjectDrawer, { type ProjectDrawerMode } from '@/components/dashboard/ProjectDrawer';
 import ProjectList from '@/components/dashboard/ProjectList';
@@ -21,12 +20,13 @@ import type {
   ProjectDetailsDraft,
   QuoteDraft,
   ScheduleDraft,
+  SurveyDraft,
 } from '@/components/dashboard/types';
 import { auth } from '@/lib/firebase';
 import {
   closeProject,
   createNewInquiry,
-  isProjectDelayed,
+  saveProjectSurvey,
   type ModuleKey,
   type Project,
   subscribeToCompanyProjects,
@@ -62,6 +62,7 @@ import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMat
 const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '' };
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
 const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
+const emptySurvey: SurveyDraft = { customerNeeds: '', siteConditions: '', measurements: '', notes: '' };
 
 function dateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -137,6 +138,7 @@ export default function Dashboard() {
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('survey');
   const [drawerIntent, setDrawerIntent] = useState<DrawerIntent>('module');
   const [scheduleDraft, setScheduleDraft] = useState<ScheduleDraft>(emptySchedule);
+  const [surveyDraft, setSurveyDraft] = useState<SurveyDraft>(emptySurvey);
   const [detailsDraft, setDetailsDraft] = useState<ProjectDetailsDraft>(emptyDetails);
   const [quoteDraft, setQuoteDraft] = useState<QuoteDraft | null>(null);
   const [contractDraft, setContractDraft] = useState<ContractDraft | null>(null);
@@ -197,10 +199,6 @@ export default function Dashboard() {
   }, []);
 
   const activeProjects = useMemo(() => projects.filter((project) => !project.closed), [projects]);
-  const delayedCount = useMemo(
-    () => activeProjects.filter((project) => isProjectDelayed(project)).length,
-    [activeProjects],
-  );
   const calendarDays = useMemo(() => getCalendarDays(calendarMonth), [calendarMonth]);
   const calendarEvents = useMemo<CalendarEvent[]>(() => activeProjects
     .flatMap((project) => moduleKeys.flatMap((moduleKey) => {
@@ -301,6 +299,10 @@ export default function Dashboard() {
     });
   }
 
+  function loadSurveyDraft(project: Project) {
+    setSurveyDraft(project.surveyData ?? emptySurvey);
+  }
+
   function loadQuoteDraft(project: Project) {
     const quote = project.quoteData;
     setQuoteDraft(quote ? {
@@ -341,6 +343,7 @@ export default function Dashboard() {
     setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : key === 'finance' ? 'finance' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
+    loadSurveyDraft(project);
     loadDetailsDraft(project);
     loadQuoteDraft(project);
     loadContractDraft(project);
@@ -374,6 +377,7 @@ export default function Dashboard() {
     setActionError('');
     setDrawerIntent('details');
     loadDetailsDraft(project);
+    loadSurveyDraft(project);
     loadQuoteDraft(project);
     loadContractDraft(project);
     setSelectedProject(project);
@@ -383,6 +387,7 @@ export default function Dashboard() {
     setActionError('');
     setDrawerIntent('close');
     loadDetailsDraft(project);
+    loadSurveyDraft(project);
     loadQuoteDraft(project);
     loadContractDraft(project);
     setSelectedProject(project);
@@ -399,6 +404,14 @@ export default function Dashboard() {
     await runAction(async () => {
       await saveProjectQuote(selectedProject.id, quoteDraft);
       setActionMessage('Az ajánlat mentve.');
+    });
+  }
+
+  async function saveSelectedSurvey() {
+    if (!selectedProject) return;
+    await runAction(async () => {
+      await saveProjectSurvey(selectedProject.id, surveyDraft);
+      setActionMessage('A felmérési űrlap mentve.');
     });
   }
 
@@ -581,12 +594,6 @@ export default function Dashboard() {
             <button type="button" onClick={() => setActionMessage('')} aria-label="Üzenet bezárása">✕</button>
           </div>
         )}
-        <DashboardStats
-          activeProjects={activeProjects.length}
-          delayedProjects={delayedCount}
-          calendarEvents={calendarEvents.length}
-        />
-
         {view === 'projects' ? (
           <><div><h2 className="text-2xl font-bold tracking-tight text-slate-800">Projektek</h2><p className="mt-1 text-sm text-slate-500">A projektek automatikusan az aktuális munkaszakasz szerint rendezve jelennek meg.</p></div><ProjectList
             projects={projects}
@@ -649,6 +656,7 @@ export default function Dashboard() {
           initialMode={drawerIntent === 'close' ? 'details' : drawerIntent}
           initialConfirmClose={drawerIntent === 'close'}
           schedule={scheduleDraft}
+          survey={surveyDraft}
           details={detailsDraft}
           quote={quoteDraft}
           contract={contractDraft}
@@ -657,11 +665,13 @@ export default function Dashboard() {
           assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}
           onScheduleChange={setScheduleDraft}
+          onSurveyChange={setSurveyDraft}
           onDetailsChange={setDetailsDraft}
           onQuoteChange={setQuoteDraft}
           onContractChange={setContractDraft}
           onStatusChange={changeModuleStatus}
           onSaveSchedule={saveSelectedSchedule}
+          onSaveSurvey={saveSelectedSurvey}
           onSaveDetails={saveProjectDetails}
           onSaveQuote={saveSelectedQuote}
           onDownloadQuote={downloadSelectedQuote}

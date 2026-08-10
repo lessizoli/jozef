@@ -2,14 +2,16 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { getProjectModuleDisplayStatus, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels, moduleStatuses } from './dashboardConfig';
+import DashboardHeader from './DashboardHeader';
 import ContractEditor from './ContractEditor';
 import QuoteEditor from './QuoteEditor';
 import ConstructionEditor from './ConstructionEditor';
 import CompletionEditor from './CompletionEditor';
 import FinanceEditor from './FinanceEditor';
-import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft } from './types';
+import SurveyEditor from './SurveyEditor';
+import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft, SurveyDraft } from './types';
 
-export type ProjectDrawerMode = 'module' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance' | 'details';
+export type ProjectDrawerMode = 'module' | 'survey' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance' | 'details';
 
 type Props = {
   project: Project;
@@ -17,6 +19,7 @@ type Props = {
   initialMode: ProjectDrawerMode;
   initialConfirmClose: boolean;
   schedule: ScheduleDraft;
+  survey: SurveyDraft;
   details: ProjectDetailsDraft;
   quote: QuoteDraft;
   contract: ContractDraft;
@@ -25,11 +28,13 @@ type Props = {
   assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
   onScheduleChange: (schedule: ScheduleDraft) => void;
+  onSurveyChange: (survey: SurveyDraft) => void;
   onDetailsChange: (details: ProjectDetailsDraft) => void;
   onQuoteChange: (quote: QuoteDraft) => void;
   onContractChange: (contract: ContractDraft) => void;
   onStatusChange: (status: string) => void;
   onSaveSchedule: (event: React.FormEvent<HTMLFormElement>) => void;
+  onSaveSurvey: () => void;
   onSaveDetails: (event: React.FormEvent<HTMLFormElement>) => void;
   onSaveQuote: () => void;
   onDownloadQuote: () => void;
@@ -54,6 +59,7 @@ export default function ProjectDrawer({
   initialMode,
   initialConfirmClose,
   schedule,
+  survey,
   details,
   quote,
   contract,
@@ -62,11 +68,13 @@ export default function ProjectDrawer({
   assignmentOptions,
   onModuleChange,
   onScheduleChange,
+  onSurveyChange,
   onDetailsChange,
   onQuoteChange,
   onContractChange,
   onStatusChange,
   onSaveSchedule,
+  onSaveSurvey,
   onSaveDetails,
   onSaveQuote,
   onDownloadQuote,
@@ -89,8 +97,9 @@ export default function ProjectDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60" onClick={onDismiss}>
-      <aside className={`h-full w-full overflow-y-auto bg-slate-900 p-4 shadow-2xl sm:p-6 ${mode === 'quote' ? 'max-w-none' : 'max-w-md border-l border-slate-700'}`} onClick={(event) => event.stopPropagation()}>
-        <div className={mode === 'quote' ? 'mx-auto max-w-7xl' : ''}>
+      <aside className={`h-full w-full overflow-y-auto bg-slate-900 shadow-2xl ${mode === 'quote' ? 'max-w-none' : 'max-w-md border-l border-slate-700 p-4 sm:p-6'}`} onClick={(event) => event.stopPropagation()}>
+        {mode === 'quote' && <DashboardHeader view="projects" />}
+        <div className={mode === 'quote' ? 'mx-auto max-w-7xl p-4 sm:p-6' : ''}>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
@@ -161,6 +170,7 @@ export default function ProjectDrawer({
                 <p className="text-xs uppercase tracking-wider text-slate-500">Kiválasztott modul</p>
                 <h3 className="mt-1 text-lg font-bold">{moduleLabels[selectedModule]}</h3>
                 <p className="mt-2 text-sm text-slate-400">Jelenlegi státusz: <span className="font-semibold text-slate-200">{getProjectModuleDisplayStatus(project, selectedModule)}</span></p>
+                {selectedModule === 'survey' && <button type="button" onClick={() => setMode('survey')} className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-500">Felmérési űrlap indítása</button>}
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-semibold text-slate-500">Dátum</label>
@@ -203,6 +213,12 @@ export default function ProjectDrawer({
               </form>
             )}
           </>
+        ) : mode === 'survey' ? (
+          project.closed ? (
+            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">A lezárt projekt felmérése már nem módosítható.</div>
+          ) : (
+            <SurveyEditor draft={survey} saving={saving} onChange={onSurveyChange} onSave={onSaveSurvey} />
+          )
         ) : mode === 'quote' ? (
           project.closed ? (
             <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">
