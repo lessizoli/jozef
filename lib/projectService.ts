@@ -430,6 +430,13 @@ export function isProjectModuleOverdue(projectModule: ProjectModule, today = new
   return projectModule.scheduledAt < localIsoDate(today);
 }
 
+export function getProjectModuleDisplayStatus(project: Project, moduleKey: ModuleKey, today = new Date()): string {
+  const projectModule = project.modules[moduleKey];
+  if (moduleKey === 'finance' && isProjectFinanceOverdue(project, today)) return 'Késedelem';
+  if (projectModule.delayed === true || isProjectModuleOverdue(projectModule, today)) return 'Csúszás';
+  return projectModule.status;
+}
+
 export function isProjectDelayed(project: Project, today = new Date()): boolean {
   if (project.closed) return false;
   return project.status === 'Csúszás'

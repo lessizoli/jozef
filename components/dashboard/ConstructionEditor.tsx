@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, type Project } from '@/lib/projectService';
 import { addConstructionLog, finishConstruction, openConstructionPhoto, saveConstructionPhases, setConstructionRunning, subscribeToConstructionEntries, uploadConstructionPhoto, type ConstructionEntry, type ConstructionPhase } from '@/lib/constructionService';
 
 type Props = { project: Project; saving: boolean; onRun: (action: () => Promise<void>, message: string) => void };
@@ -13,7 +13,7 @@ export default function ConstructionEditor({ project, saving, onRun }: Props) {
     <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
       <p className="text-xs uppercase tracking-wider text-slate-500">Ütemezés és csapat</p>
       <p className="mt-2 text-sm text-slate-200">{constructionModule.scheduledAt || 'Nincs dátum'} {constructionModule.scheduledTime || ''}</p>
-      <p className="mt-1 text-sm text-slate-400">{constructionModule.assignedTo || 'Nincs csapat vagy felelős hozzárendelve'}</p><p className="mt-3 text-sm">Státusz: <strong>{constructionModule.status}</strong></p>
+      <p className="mt-1 text-sm text-slate-400">{constructionModule.assignedTo || 'Nincs csapat vagy felelős hozzárendelve'}</p><p className="mt-3 text-sm">Státusz: <strong>{getProjectModuleDisplayStatus(project, 'construction')}</strong></p>
       <div className="mt-4 grid grid-cols-2 gap-2"><button disabled={saving || constructionModule.status === 'Folyamatban'} onClick={() => onRun(() => setConstructionRunning(project.id), 'A kivitelezés elindult.')} className="rounded-lg bg-amber-500 px-3 py-2 text-sm font-bold text-slate-950 disabled:opacity-40">Indítás</button><button disabled={saving || constructionModule.status === 'Befejezve'} onClick={() => onRun(() => finishConstruction(project.id, project.modules.completion.enabled), 'A kivitelezés befejeződött.')} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-bold disabled:opacity-40">Befejezés</button></div>
     </section>
     <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">

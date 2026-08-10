@@ -1,6 +1,6 @@
 # Envision CRM – projektállapot és mérföldkövek
 
-Utolsó frissítés: 2026. augusztus 9.
+Utolsó frissítés: 2026. augusztus 10.
 
 Ez a fájl az Envision CRM fejlesztésének központi állapotlapja. Új fejlesztés megkezdése előtt ezt kell elolvasni, befejezés után pedig frissíteni kell.
 
@@ -68,6 +68,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Világos, modern alkalmazásmegjelenés
 - [x] Projektek összecsukható munkaszakasz-csoportokban
 - [x] Kiemelt, munkaszakasztól független „Csúszásban” projektcsoport
+- [x] Lejárt vagy késésre jelölt modulok egységes „Csúszás” / „Késedelem” megjelenítése minden projektnézetben
 - [x] Moduláris projektfolyamat és állapotszínezés
 - [x] Projekt legutóbbi műveletének megjelenítése
 - [x] Projektkártya gyorsműveletek
@@ -192,7 +193,7 @@ Ezek nem blokkolják az alaptermék elkészültét:
 
 ## Legutóbbi kiadási állapot
 
-- GitHub `main`: `ec89aa9` – Add document library and permission matrix
+- GitHub `main`: `63e9048` – Fix overdue project detection (#8)
 - Firestore rules: telepítve az `envision-cmr` projektbe
 - Storage rules: telepítve az `envision-cmr` projektbe
 - Lint: sikeres

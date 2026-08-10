@@ -1,4 +1,4 @@
-import type { ModuleKey, Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels } from './dashboardConfig';
 import type { AssignmentOption, CalendarDraft } from './types';
 
@@ -58,7 +58,7 @@ export default function CalendarDialog({
           <label className="mb-1.5 block text-xs font-semibold text-slate-400">Projektfolyamat</label>
           <select required value={draft.moduleKey} onChange={(event) => onChange({ ...draft, moduleKey: event.target.value as ModuleKey })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500">
             {moduleKeys.filter((key) => selectedProject?.modules[key].enabled).map((key) => (
-              <option key={key} value={key}>{moduleLabels[key]} · {selectedProject?.modules[key].status}</option>
+              <option key={key} value={key}>{moduleLabels[key]} · {selectedProject ? getProjectModuleDisplayStatus(selectedProject, key) : ''}</option>
             ))}
           </select>
         </div>

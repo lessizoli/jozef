@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { isProjectDelayed, isProjectFinanceOverdue, isProjectModuleOverdue, type ModuleKey, type Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, isProjectDelayed, isProjectFinanceOverdue, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels } from './dashboardConfig';
 
 type Props = { projects: Project[]; onCreate: () => void; onOpenModule: (project: Project, moduleKey: ModuleKey) => void; onEditProject: (project: Project) => void; onCloseProject: (project: Project) => void };
@@ -27,8 +27,7 @@ function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProjec
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const projectModule = project.modules[stage];
   const financeOverdue = isProjectFinanceOverdue(project);
-  const moduleOverdue = isProjectModuleOverdue(projectModule);
-  const stageStatus = stage === 'finance' && financeOverdue ? 'Késedelem' : moduleOverdue ? 'Csúszás' : projectModule.status;
+  const stageStatus = getProjectModuleDisplayStatus(project, stage);
   return <div className="border-t border-slate-200 transition hover:bg-slate-50/70">
     <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(220px,1.4fr)_minmax(150px,.8fr)_minmax(140px,.7fr)_auto] lg:items-center">
       <div className="min-w-0"><span className="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700">{project.code}</span><h3 className="mt-2 truncate text-sm font-bold text-slate-800">{project.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p></div>
@@ -41,7 +40,7 @@ function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProjec
     </div>
     {quickMenuOpen && <div className="border-t border-sky-100 bg-sky-50/70 px-5 py-4">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {!project.closed && moduleKeys.map((key) => <button type="button" key={key} disabled={!project.modules[key].enabled} onClick={() => onOpenModule(project, key)} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 shadow-sm hover:border-sky-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"><span className="font-semibold">{moduleLabels[key]}</span><span className="ml-2 truncate">{key === 'finance' && financeOverdue ? 'Késedelem' : project.modules[key].status}</span></button>)}
+        {!project.closed && moduleKeys.map((key) => <button type="button" key={key} disabled={!project.modules[key].enabled} onClick={() => onOpenModule(project, key)} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 shadow-sm hover:border-sky-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"><span className="font-semibold">{moduleLabels[key]}</span><span className="ml-2 truncate">{getProjectModuleDisplayStatus(project, key)}</span></button>)}
       </div>
       <div className="mt-3 flex flex-wrap gap-2 border-t border-sky-100 pt-3">
         <button type="button" onClick={() => onEditProject(project)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-sky-700 shadow-sm hover:bg-sky-100">{project.closed ? 'Projektadatok megtekintése' : 'Projektadatok módosítása'}</button>

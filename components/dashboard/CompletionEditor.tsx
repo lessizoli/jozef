@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Project } from '@/lib/projectService';
+import { getProjectModuleDisplayStatus, type Project } from '@/lib/projectService';
 import { completeProjectHandover, saveProjectCompletion, type CompletionData } from '@/lib/completionService';
 
 type Props = { project: Project; saving: boolean; onRun: (action: () => Promise<void>, message: string) => void };
@@ -18,7 +18,7 @@ export default function CompletionEditor({ project, saving, onRun }: Props) {
   return <div className="mt-6 space-y-5">
     <section className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
       <p className="text-xs uppercase tracking-wider text-slate-500">Befejezés és átadás</p>
-      <p className="mt-2 text-sm text-slate-300">Státusz: <strong>{project.modules.completion.status}</strong></p>
+      <p className="mt-2 text-sm text-slate-300">Státusz: <strong>{getProjectModuleDisplayStatus(project, 'completion')}</strong></p>
       <div className="mt-4 space-y-2">{data.checklist.map((item, index) => <label key={item.id} className="flex items-start gap-3 rounded-lg border border-slate-800 p-3 text-sm"><input disabled={completed} type="checkbox" checked={item.completed} onChange={(event) => setData((current) => ({ ...current, checklist: current.checklist.map((entry, i) => i === index ? { ...entry, completed: event.target.checked } : entry) }))} className="mt-0.5" /><span>{item.label}</span></label>)}</div>
     </section>
     <section className="space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
