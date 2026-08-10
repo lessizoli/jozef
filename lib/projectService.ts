@@ -421,6 +421,27 @@ export function isProjectFinanceOverdue(project: Project, today = new Date()): b
   return dueDate < localToday;
 }
 
+function localIsoDate(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export function isProjectModuleOverdue(projectModule: ProjectModule, today = new Date()): boolean {
+  if (!projectModule.enabled || !projectModule.scheduledAt || completedStatuses.includes(projectModule.status)) return false;
+  return projectModule.scheduledAt < localIsoDate(today);
+}
+
+export function isProjectDelayed(project: Project, today = new Date()): boolean {
+  if (project.closed) return false;
+  return project.status === 'Csúszás'
+    || isProjectFinanceOverdue(project, today)
+    || moduleOrder.some((key) => {
+      const projectModule = project.modules[key];
+      return projectModule.delayed === true
+        || delayedStatuses.includes(projectModule.status)
+        || isProjectModuleOverdue(projectModule, today);
+    });
+}
+
 export function subscribeToCompanyProjects(
   _legacyCompanyId: string,
   callback: (projects: Project[]) => void,
