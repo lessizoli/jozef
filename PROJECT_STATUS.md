@@ -193,7 +193,7 @@ Ezek nem blokkolják az alaptermék elkészültét:
 
 ## Legutóbbi kiadási állapot
 
-- GitHub `main`: `63e9048` – Fix overdue project detection (#8)
+- GitHub `main`: PR #9 – Unify delayed module status display
 - Firestore rules: telepítve az `envision-cmr` projektbe
 - Storage rules: telepítve az `envision-cmr` projektbe
 - Lint: sikeres
