@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { isProjectFinanceOverdue, type ModuleKey, type Project } from '@/lib/projectService';
+import { isProjectDelayed, isProjectFinanceOverdue, isProjectModuleOverdue, type ModuleKey, type Project } from '@/lib/projectService';
 import { moduleKeys, moduleLabels } from './dashboardConfig';
 
 type Props = { projects: Project[]; onCreate: () => void; onOpenModule: (project: Project, moduleKey: ModuleKey) => void; onEditProject: (project: Project) => void; onCloseProject: (project: Project) => void };
@@ -16,7 +16,6 @@ const groups: Array<{ key: 'delayed' | 'closed' | ModuleKey; label: string; note
   { key: 'closed', label: 'Lezárt projektek', note: 'Korábbi, már lezárt munkák' },
 ];
 
-function delayed(project: Project) { return project.status === 'Csúszás' || isProjectFinanceOverdue(project) || moduleKeys.some((key) => project.modules[key].delayed || ['Csúszás', 'Késedelem'].includes(project.modules[key].status)); }
 function currentStage(project: Project): ModuleKey {
   return moduleKeys.find((key) => project.modules[key].enabled && !completedStatuses.includes(project.modules[key].status) && project.modules[key].status !== 'Intézendő')
     ?? moduleKeys.find((key) => project.modules[key].enabled && !completedStatuses.includes(project.modules[key].status))
@@ -28,11 +27,12 @@ function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProjec
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const projectModule = project.modules[stage];
   const financeOverdue = isProjectFinanceOverdue(project);
-  const stageStatus = stage === 'finance' && financeOverdue ? 'Késedelem' : projectModule.status;
+  const moduleOverdue = isProjectModuleOverdue(projectModule);
+  const stageStatus = stage === 'finance' && financeOverdue ? 'Késedelem' : moduleOverdue ? 'Csúszás' : projectModule.status;
   return <div className="border-t border-slate-200 transition hover:bg-slate-50/70">
     <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(220px,1.4fr)_minmax(150px,.8fr)_minmax(140px,.7fr)_auto] lg:items-center">
       <div className="min-w-0"><span className="rounded-md bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-700">{project.code}</span><h3 className="mt-2 truncate text-sm font-bold text-slate-800">{project.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{project.client.name} · {project.client.address || 'Nincs cím megadva'}</p></div>
-      <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aktuális szakasz</p><p className={`mt-1.5 text-xs font-bold ${delayed(project) ? 'text-rose-600' : completedStatuses.includes(projectModule.status) ? 'text-emerald-600' : 'text-amber-600'}`}>{moduleLabels[stage]} · {stageStatus}</p>{projectModule.scheduledAt && <p className="mt-1 text-xs text-slate-500">{projectModule.scheduledAt}{projectModule.scheduledTime ? ` · ${projectModule.scheduledTime}` : ''}</p>}</div>
+      <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aktuális szakasz</p><p className={`mt-1.5 text-xs font-bold ${isProjectDelayed(project) ? 'text-rose-600' : completedStatuses.includes(projectModule.status) ? 'text-emerald-600' : 'text-amber-600'}`}>{moduleLabels[stage]} · {stageStatus}</p>{projectModule.scheduledAt && <p className="mt-1 text-xs text-slate-500">{projectModule.scheduledAt}{projectModule.scheduledTime ? ` · ${projectModule.scheduledTime}` : ''}</p>}</div>
       <div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Felelős</p><p className="mt-1.5 text-xs font-semibold text-slate-600">{projectModule.assignedTo || 'Nincs hozzárendelve'}</p><p className="mt-1 truncate text-[11px] text-slate-400">{financeOverdue ? 'A számla fizetési határideje lejárt' : project.lastAction}</p></div>
       <div className="flex flex-wrap gap-2 lg:justify-end">
         <Link href={`/projektek/${encodeURIComponent(project.id)}`} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-sky-500">Teljes projekt</Link>
@@ -57,8 +57,7 @@ export default function ProjectList({ projects, onCreate, onOpenModule, onEditPr
   const grouped = useMemo(() => groups.map((group) => ({ ...group, projects: projects.filter((project) => {
     if (group.key === 'closed') return project.closed;
     if (project.closed) return false;
-    if (group.key === 'delayed') return delayed(project);
-    if (delayed(project)) return false;
+    if (group.key === 'delayed') return isProjectDelayed(project);
     return currentStage(project) === group.key;
   }) })), [projects]);
   function toggle(key: string) { setOpenGroups((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; }); }
