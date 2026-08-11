@@ -411,7 +411,10 @@ export default function Dashboard() {
     if (!selectedProject) return;
     await runAction(async () => {
       await saveProjectSurvey(selectedProject.id, surveyDraft);
-      setActionMessage('A felmérési űrlap mentve.');
+      await updateProjectModuleStatus(selectedProject.id, 'survey', 'Kész');
+      setActionMessage(selectedProject.modules.quote.enabled
+        ? 'A felmérési űrlap mentve, a projekt átkerült az Árajánlat szakaszba.'
+        : 'A felmérési űrlap mentve, a következő elérhető projektszakasz elindult.');
     });
   }
 
@@ -583,13 +586,13 @@ export default function Dashboard() {
 
       <div className="mx-auto max-w-[1500px] space-y-7 px-5 py-7">
         {actionError && (
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-500/40 bg-rose-500/10 p-4 text-sm text-rose-200" role="alert">
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm font-semibold text-rose-800" role="alert">
             <span>{actionError}</span>
             <button type="button" onClick={() => setActionError('')} aria-label="Hibaüzenet bezárása">✕</button>
           </div>
         )}
         {actionMessage && (
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4 text-sm text-emerald-200" role="status">
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800" role="status">
             <span>{actionMessage}</span>
             <button type="button" onClick={() => setActionMessage('')} aria-label="Üzenet bezárása">✕</button>
           </div>

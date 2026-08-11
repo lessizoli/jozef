@@ -217,7 +217,7 @@ export default function ProjectDrawer({
           project.closed ? (
             <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-400">A lezárt projekt felmérése már nem módosítható.</div>
           ) : (
-            <SurveyEditor draft={survey} saving={saving} onChange={onSurveyChange} onSave={onSaveSurvey} />
+            <SurveyEditor draft={survey} project={project} saving={saving} onChange={onSurveyChange} onSave={onSaveSurvey} onRun={onConstructionAction} />
           )
         ) : mode === 'quote' ? (
           project.closed ? (
