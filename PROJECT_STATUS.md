@@ -86,6 +86,9 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Meglévő Envision-felhasználó meghívása további céghez
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Menthető helyszíni felmérési űrlap közvetlenül a Felmérés gyorsmenüből
+- [x] Felmérési képek feltöltése galériából vagy közvetlenül mobilkamerával
+- [x] Mentett felmérési eredmény megjelenítése a modulban és a teljes projektlapon
+- [x] Felmérés mentésekor automatikus továbblépés a következő elérhető projektszakaszra
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
 - [x] Projektjegyzetek és képfeltöltés
