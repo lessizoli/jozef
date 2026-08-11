@@ -624,11 +624,36 @@ export async function saveProjectSurvey(
   survey: { customerNeeds: string; siteConditions: string; measurements: string; notes: string },
 ) {
   const companyId = await getAuthenticatedCompanyId();
-  await updateDoc(companyProjectDocument(companyId, projectId), {
+  const projectReference = companyProjectDocument(companyId, projectId);
+  const projectSnapshot = await getDoc(projectReference);
+  if (!projectSnapshot.exists()) throw new Error('A projekt nem található.');
+
+  const project = normalizeProject(projectId, companyId, projectSnapshot.data());
+  if (!project.modules.survey.enabled) throw new Error('A Felmérés modul ennél a projektnél nem elérhető.');
+
+  const nextModuleKey = moduleOrder.slice(1).find((key) => project.modules[key].enabled);
+  const updates: Record<string, unknown> = {
     surveyData: { ...survey, updatedAt: serverTimestamp() },
-    lastAction: 'Felmérési űrlap mentve',
+    'modules.survey.status': 'Kész',
+    'modules.survey.delayed': false,
+    'modules.survey.completedAt': serverTimestamp(),
+    'modules.survey.statusChangedAt': serverTimestamp(),
+    status: nextModuleKey ? 'Folyamatban' : 'Lezárható',
+    closed: false,
+    lastAction: nextModuleKey
+      ? `Felmérés elkészült, ${moduleLabels[nextModuleKey]} elindítva`
+      : 'Felmérés elkészült, a projekt lezárható',
     updatedAt: serverTimestamp(),
-  });
+  };
+
+  if (nextModuleKey) {
+    updates[`modules.${nextModuleKey}.status`] = startingStatuses[nextModuleKey];
+    updates[`modules.${nextModuleKey}.delayed`] = false;
+    updates[`modules.${nextModuleKey}.completedAt`] = null;
+  }
+
+  // Egyetlen dokumentumfrissítés: a felmérési eredmény és a folyamatváltás nem válhat szét.
+  await updateDoc(projectReference, updates);
 }
 
 export async function updateProjectModuleSchedule(

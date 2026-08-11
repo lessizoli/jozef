@@ -411,7 +411,6 @@ export default function Dashboard() {
     if (!selectedProject) return;
     await runAction(async () => {
       await saveProjectSurvey(selectedProject.id, surveyDraft);
-      await updateProjectModuleStatus(selectedProject.id, 'survey', 'Kész');
       setActionMessage(selectedProject.modules.quote.enabled
         ? 'A felmérési űrlap mentve, a projekt átkerült az Árajánlat szakaszba.'
         : 'A felmérési űrlap mentve, a következő elérhető projektszakasz elindult.');
