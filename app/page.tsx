@@ -410,7 +410,7 @@ export default function Dashboard() {
   async function saveSelectedSurvey() {
     if (!selectedProject) return;
     await runAction(async () => {
-      await saveProjectSurvey(selectedProject.id, surveyDraft);
+      await saveProjectSurvey(selectedProject, surveyDraft);
       setActionMessage(selectedProject.modules.quote.enabled
         ? 'A felmérési űrlap mentve, a projekt átkerült az Árajánlat szakaszba.'
         : 'A felmérési űrlap mentve, a következő elérhető projektszakasz elindult.');

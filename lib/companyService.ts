@@ -2,6 +2,7 @@ import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from './firebase';
 import { getUserContext } from './teamService';
+import { seedUserContext } from './userContext';
 
 export type CompanyDetails = {
   name: string;
@@ -77,6 +78,7 @@ export function subscribeToCompanyMemberships(callback: (value: { activeCompanyI
   if (!user) return () => undefined;
   return onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
     const data = snapshot.data() ?? {};
+    seedUserContext(user.uid, data);
     const raw = data.memberships && typeof data.memberships === 'object' ? data.memberships as Record<string, CompanyMembership> : {};
     const memberships = Object.values(raw).filter((item) => item?.active !== false);
     if (memberships.length === 0 && data.companyId) memberships.push({ companyId: String(data.companyId), companyName: 'Jelenlegi cég', role: String(data.role ?? ''), active: data.active !== false });
