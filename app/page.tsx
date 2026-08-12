@@ -414,6 +414,7 @@ export default function Dashboard() {
       setActionMessage(selectedProject.modules.quote.enabled
         ? 'A felmérési űrlap mentve, a projekt átkerült az Árajánlat szakaszba.'
         : 'A felmérési űrlap mentve, a következő elérhető projektszakasz elindult.');
+      setSelectedProject(null);
     });
   }
 
