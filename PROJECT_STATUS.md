@@ -90,6 +90,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Mentett felmérési eredmény megjelenítése a modulban és a teljes projektlapon
 - [x] Felmérés mentésekor automatikus továbblépés a következő elérhető projektszakaszra
 - [x] A felmérési eredmény és a státuszváltás atomi, régi projektekkel kompatibilis mentése
+- [x] Gyorsítótárazott felhasználói és cégkontextus a gyakori megnyitási és mentési műveletekhez
 - [x] Naptár és több párhuzamos projektfolyamat időzítése
 - [x] Munkatársak és kivitelezőcsapatok kezelése
 - [x] Projektjegyzetek és képfeltöltés

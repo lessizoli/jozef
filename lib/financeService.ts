@@ -2,17 +2,15 @@ import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getBlob, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 import type { FinanceData, Project } from './projectService';
+import { getActiveUserContext } from './userContext';
 
 export type FinanceDraft = Pick<FinanceData, 'invoiceNumber' | 'grossAmount' | 'invoiceDate' | 'dueDate' | 'paidAt' | 'note'>;
 
 async function context(projectId: string) {
   const user = auth.currentUser;
   if (!user) throw new Error('Nincs bejelentkezett felhasználó.');
-  const profile = await getDoc(doc(db, 'users', user.uid));
-  if (!profile.exists() || profile.data().active === false || !profile.data().companyId) {
-    throw new Error('Nincs aktív céges hozzáférés.');
-  }
-  const companyId = String(profile.data().companyId);
+  const profile = await getActiveUserContext();
+  const companyId = profile.companyId;
   return {
     user,
     companyId,

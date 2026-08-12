@@ -1,6 +1,7 @@
-import { addDoc, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { getBlob, ref, uploadBytes } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
+import { getActiveUserContext } from './userContext';
 
 export type ConstructionPhase = { id: string; title: string; completed: boolean };
 export type ConstructionEntry = { id: string; type: 'log' | 'photo'; text?: string; fileName?: string; storagePath?: string; createdByName?: string; createdAt?: unknown };
@@ -8,9 +9,8 @@ export type ConstructionEntry = { id: string; type: 'log' | 'photo'; text?: stri
 async function context() {
   const user = auth.currentUser;
   if (!user) throw new Error('Nincs bejelentkezett felhasználó.');
-  const profile = await getDoc(doc(db, 'users', user.uid));
-  if (!profile.exists() || profile.data().active === false || !profile.data().companyId) throw new Error('Nincs aktív céges hozzáférés.');
-  return { companyId: String(profile.data().companyId), uid: user.uid, name: user.displayName || user.email || 'Munkatárs' };
+  const profile = await getActiveUserContext();
+  return { companyId: profile.companyId, uid: user.uid, name: profile.fullName || user.displayName || profile.email || user.email || 'Munkatárs' };
 }
 function entries(companyId: string, projectId: string) { return collection(db, 'companies', companyId, 'projects', projectId, 'constructionEntries'); }
 

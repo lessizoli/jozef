@@ -3,7 +3,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -11,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from './firebase';
+import { getActiveUserContext } from './userContext';
 
 export type MemberRole = 'company_admin' | 'project_manager' | 'surveyor' | 'installer' | 'finance';
 
@@ -45,14 +45,6 @@ export type UserContext = {
   canManage: boolean;
 };
 
-type UserProfile = {
-  companyId?: string;
-  role?: string;
-  active?: boolean;
-  fullName?: string;
-  email?: string;
-};
-
 export const roleLabels: Record<MemberRole, string> = {
   company_admin: 'Céges adminisztrátor',
   project_manager: 'Projektvezető',
@@ -62,15 +54,10 @@ export const roleLabels: Record<MemberRole, string> = {
 };
 
 export async function getUserContext(): Promise<UserContext> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('Nincs bejelentkezett felhasználó.');
-  const snapshot = await getDoc(doc(db, 'users', currentUser.uid));
-  if (!snapshot.exists()) throw new Error('A felhasználói profil nem található.');
-  const profile = snapshot.data() as UserProfile;
-  if (profile.active === false || !profile.companyId) throw new Error('A felhasználói fiók nem aktív.');
-  const role = profile.role ?? '';
+  const profile = await getActiveUserContext();
+  const role = profile.role;
   return {
-    uid: currentUser.uid,
+    uid: profile.uid,
     companyId: profile.companyId,
     role,
     canManage: ['company_admin', 'admin', 'superadmin'].includes(role),
@@ -82,7 +69,7 @@ export async function ensureCurrentMember() {
   if (!context.canManage) return context;
   const currentUser = auth.currentUser;
   if (!currentUser) return context;
-  const profile = (await getDoc(doc(db, 'users', currentUser.uid))).data() as UserProfile;
+  const profile = await getActiveUserContext();
   await setDoc(doc(db, 'companies', context.companyId, 'members', currentUser.uid), {
     uid: currentUser.uid,
     fullName: profile.fullName ?? currentUser.displayName ?? currentUser.email ?? 'Adminisztrátor',

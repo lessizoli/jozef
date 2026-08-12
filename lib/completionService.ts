@@ -1,5 +1,6 @@
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { getActiveUserContext } from './userContext';
 
 export type CompletionChecklistItem = { id: string; label: string; completed: boolean };
 export type CompletionData = {
@@ -17,9 +18,8 @@ export type CompletionData = {
 async function context() {
   const user = auth.currentUser;
   if (!user) throw new Error('Nincs bejelentkezett felhasználó.');
-  const profile = await getDoc(doc(db, 'users', user.uid));
-  if (!profile.exists() || profile.data().active === false || !profile.data().companyId) throw new Error('Nincs aktív céges hozzáférés.');
-  return { companyId: String(profile.data().companyId), uid: user.uid, name: user.displayName || user.email || 'Munkatárs' };
+  const profile = await getActiveUserContext();
+  return { companyId: profile.companyId, uid: user.uid, name: profile.fullName || user.displayName || profile.email || user.email || 'Munkatárs' };
 }
 
 export async function saveProjectCompletion(projectId: string, data: CompletionData) {

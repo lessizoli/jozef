@@ -1,6 +1,7 @@
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { MemberRole } from './teamService';
+import { getActiveUserContext } from './userContext';
 
 export type PermissionKey = 'createProjects' | 'editProjects' | 'manageDocuments' | 'manageFinance' | 'manageTeams' | 'manageMembers';
 export type PermissionMatrix = Record<MemberRole, Record<PermissionKey, boolean>>;
@@ -16,10 +17,9 @@ export const defaultPermissionMatrix: PermissionMatrix = {
 };
 
 async function adminContext() {
-  const user = auth.currentUser; if (!user) throw new Error('Bejelentkezés szükséges.');
-  const profile = await getDoc(doc(db, 'users', user.uid)); const data = profile.data();
-  if (!profile.exists() || !data?.companyId || !['company_admin', 'admin', 'superadmin'].includes(String(data.role))) throw new Error('Céges adminisztrátori jogosultság szükséges.');
-  return String(data.companyId);
+  const data = await getActiveUserContext();
+  if (!['company_admin', 'admin', 'superadmin'].includes(data.role)) throw new Error('Céges adminisztrátori jogosultság szükséges.');
+  return data.companyId;
 }
 export function subscribeToPermissionMatrix(companyId: string, callback: (matrix: PermissionMatrix) => void) {
   return onSnapshot(doc(db, 'companies', companyId, 'settings', 'permissions'), (snapshot) => {

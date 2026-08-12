@@ -3,7 +3,6 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -17,6 +16,7 @@ import {
 } from 'firebase/storage';
 import { auth, db, storage } from './firebase';
 import type { ModuleKey } from './projectService';
+import { getActiveUserContext } from './userContext';
 
 export type ProjectAttachmentType = 'note' | 'image' | 'document' | 'video' | 'audio';
 
@@ -37,23 +37,10 @@ export type ProjectAttachment = {
   title?: string;
 };
 
-type UserProfile = {
-  companyId?: string | null;
-  active?: boolean;
-  fullName?: string;
-  email?: string;
-};
-
 async function getCompanyId() {
   const user = auth.currentUser;
   if (!user) throw new Error('Nincs bejelentkezett felhasználó.');
-
-  const profileSnapshot = await getDoc(doc(db, 'users', user.uid));
-  if (!profileSnapshot.exists()) throw new Error('A felhasználói profil nem található.');
-
-  const profile = profileSnapshot.data() as UserProfile;
-  if (profile.active === false) throw new Error('A felhasználói fiók inaktív.');
-  if (!profile.companyId) throw new Error('A felhasználóhoz nincs cég rendelve.');
+  const profile = await getActiveUserContext();
 
   return {
     companyId: profile.companyId,

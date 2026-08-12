@@ -9,6 +9,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import { getActiveUserContext } from './userContext';
 
 export type ModuleKey = 'survey' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance';
 
@@ -194,17 +195,8 @@ const startingStatuses: Record<ModuleKey, string> = {
 };
 
 async function getAuthenticatedProfile(): Promise<UserProfile> {
-  const currentUser = auth.currentUser;
-  if (!currentUser) throw new Error('Nincs bejelentkezett felhasználó.');
-
-  const profileSnapshot = await getDoc(doc(db, 'users', currentUser.uid));
-  if (!profileSnapshot.exists()) {
-    throw new Error('A felhasználói profil nem található a Firestore-ban.');
-  }
-
-  const profile = profileSnapshot.data() as UserProfile;
-  if (profile.active === false) throw new Error('A felhasználói fiók inaktív.');
-  return profile;
+  const context = await getActiveUserContext();
+  return { companyId: context.companyId, role: context.role, active: context.active };
 }
 
 async function getAuthenticatedCompanyId(): Promise<string> {
@@ -620,15 +612,12 @@ export async function updateProjectModuleStatus(
 }
 
 export async function saveProjectSurvey(
-  projectId: string,
+  project: Project,
   survey: { customerNeeds: string; siteConditions: string; measurements: string; notes: string },
 ) {
   const companyId = await getAuthenticatedCompanyId();
-  const projectReference = companyProjectDocument(companyId, projectId);
-  const projectSnapshot = await getDoc(projectReference);
-  if (!projectSnapshot.exists()) throw new Error('A projekt nem található.');
-
-  const project = normalizeProject(projectId, companyId, projectSnapshot.data());
+  if (project.companyId !== companyId) throw new Error('A projekt nem ehhez a céghez tartozik.');
+  const projectReference = companyProjectDocument(companyId, project.id);
   if (!project.modules.survey.enabled) throw new Error('A Felmérés modul ennél a projektnél nem elérhető.');
 
   const nextModuleKey = moduleOrder.slice(1).find((key) => project.modules[key].enabled);
