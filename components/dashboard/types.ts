@@ -9,6 +9,7 @@ export type InquiryForm = {
   clientName: string;
   address: string;
   phone: string;
+  initialTask: string;
 };
 
 export type ProjectDetailsDraft = {

@@ -33,6 +33,7 @@ import {
   updateProjectDetails,
   updateProjectModuleSchedule,
   updateProjectModuleStatus,
+  warmProjectCreationContext,
 } from '@/lib/projectService';
 import { downloadProjectQuote, saveProjectQuote, sendProjectQuote } from '@/lib/quoteService';
 import {
@@ -59,7 +60,7 @@ import {
 } from '@/lib/teamService';
 import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMatrix, type PermissionMatrix } from '@/lib/permissionService';
 
-const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '' };
+const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '', initialTask: '' };
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
 const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
 const emptySurvey: SurveyDraft = { customerNeeds: '', siteConditions: '', measurements: '', notes: '' };
@@ -178,6 +179,8 @@ export default function Dashboard() {
     setSelectedProject((current) => current ? items.find((item) => item.id === current.id) ?? null : null);
   }), []);
 
+  useEffect(() => { void warmProjectCreationContext().catch(() => undefined); }, []);
+
   useEffect(() => {
     const unsubscribers: Array<() => void> = [];
     let cancelled = false;
@@ -240,10 +243,18 @@ export default function Dashboard() {
   async function createProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!inquiryForm.title.trim() || !inquiryForm.clientName.trim()) return;
+    const submitted = inquiryForm;
+    setInquiryForm(emptyInquiry);
+    setShowCreate(false);
     await runAction(async () => {
-      await createNewInquiry('', inquiryForm.title, inquiryForm.clientName, inquiryForm.address, inquiryForm.phone);
-      setInquiryForm(emptyInquiry);
-      setShowCreate(false);
+      try {
+        await createNewInquiry('', submitted.title, submitted.clientName, submitted.address, submitted.phone, submitted.initialTask);
+        setActionMessage('Az új projekt létrejött.');
+      } catch (error) {
+        setInquiryForm(submitted);
+        setShowCreate(true);
+        throw error;
+      }
     });
   }
 
@@ -340,7 +351,7 @@ export default function Dashboard() {
   function openModule(project: Project, key: ModuleKey) {
     if (project.closed || !project.modules[key].enabled) return;
     setActionError('');
-    setDrawerIntent(key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : key === 'finance' ? 'finance' : 'module');
+    setDrawerIntent(key === 'survey' ? 'survey' : key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : key === 'finance' ? 'finance' : 'module');
     setSelectedModule(key);
     loadScheduleDraft(project, key);
     loadSurveyDraft(project);
@@ -664,6 +675,8 @@ export default function Dashboard() {
           quote={quoteDraft}
           contract={contractDraft}
           saving={saving}
+          actionError={actionError}
+          actionMessage={actionMessage}
           canEditProject={rolePermissions.editProjects}
           assignmentOptions={assignmentOptions}
           onModuleChange={changeSelectedModule}

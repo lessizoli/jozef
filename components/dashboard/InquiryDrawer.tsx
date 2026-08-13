@@ -37,6 +37,10 @@ export default function InquiryDrawer({ open, form, saving, onChange, onClose, o
             <label className="mb-1.5 block text-xs font-semibold text-slate-400">Telefonszám</label>
             <input value={form.phone} onChange={(event) => onChange({ ...form, phone: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" />
           </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-400">Alapfeladat / első teendő</label>
+            <textarea rows={3} value={form.initialTask} onChange={(event) => onChange({ ...form, initialTask: event.target.value })} placeholder="Például: helyszíni felmérés egyeztetése az ügyféllel" className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" />
+          </div>
           <button disabled={saving} className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold hover:bg-emerald-500 disabled:opacity-50">
             {saving ? 'Mentés…' : 'Érdeklődés rögzítése'}
           </button>

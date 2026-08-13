@@ -24,6 +24,8 @@ type Props = {
   quote: QuoteDraft;
   contract: ContractDraft;
   saving: boolean;
+  actionError: string;
+  actionMessage: string;
   canEditProject: boolean;
   assignmentOptions: AssignmentOption[];
   onModuleChange: (moduleKey: ModuleKey) => void;
@@ -64,6 +66,8 @@ export default function ProjectDrawer({
   quote,
   contract,
   saving,
+  actionError,
+  actionMessage,
   canEditProject,
   assignmentOptions,
   onModuleChange,
@@ -100,6 +104,8 @@ export default function ProjectDrawer({
       <aside className={`h-full w-full overflow-y-auto bg-slate-900 shadow-2xl ${mode === 'quote' ? 'max-w-none' : 'max-w-md border-l border-slate-700 p-4 sm:p-6'}`} onClick={(event) => event.stopPropagation()}>
         {mode === 'quote' && <DashboardHeader view="projects" />}
         <div className={mode === 'quote' ? 'mx-auto max-w-7xl p-4 sm:p-6' : ''}>
+        {actionMessage && <div role="status" className="sticky top-2 z-20 mb-4 rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-bold text-emerald-800 shadow-lg">{actionMessage}</div>}
+        {actionError && <div role="alert" className="sticky top-2 z-20 mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-sm font-bold text-rose-800 shadow-lg">{actionError}</div>}
         <div className="flex items-start justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">

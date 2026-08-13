@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocFromCache,
   onSnapshot,
   query,
   serverTimestamp,
@@ -113,6 +114,7 @@ export interface Project {
   title: string;
   status: string;
   lastAction?: string;
+  initialTask?: string;
   closed?: boolean;
   teamId?: string | null;
   client: {
@@ -162,6 +164,9 @@ type CompanyModuleAccess = {
   enabledModules: string[];
 };
 
+const moduleAccessCache = new Map<string, { value: CompanyModuleAccess; expiresAt: number }>();
+const moduleAccessPending = new Map<string, Promise<CompanyModuleAccess>>();
+
 const moduleOrder: ModuleKey[] = ['survey', 'quote', 'contract', 'construction', 'completion', 'finance'];
 
 const moduleLabels: Record<ModuleKey, string> = {
@@ -206,18 +211,29 @@ async function getAuthenticatedCompanyId(): Promise<string> {
 }
 
 async function getCompanyModuleAccess(companyId: string): Promise<CompanyModuleAccess> {
-  const snapshot = await getDoc(doc(db, 'companies', companyId));
-  if (!snapshot.exists()) throw new Error('A cég adatai nem találhatók.');
-  const data = snapshot.data();
-  const configuredModules = Array.isArray(data.enabledModules)
-    ? data.enabledModules.filter((item): item is string => typeof item === 'string')
-    : null;
+  const cached = moduleAccessCache.get(companyId);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+  const running = moduleAccessPending.get(companyId);
+  if (running) return running;
+  const request = (async () => {
+    const reference = doc(db, 'companies', companyId);
+    const snapshot = await getDocFromCache(reference).catch(() => getDoc(reference));
+    if (!snapshot.exists()) throw new Error('A cég adatai nem találhatók.');
+    const data = snapshot.data();
+    const configuredModules = Array.isArray(data.enabledModules)
+      ? data.enabledModules.filter((item): item is string => typeof item === 'string')
+      : null;
+    const value = { plan: typeof data.plan === 'string' ? data.plan : 'legacy', enabledModules: configuredModules ?? [...moduleOrder] };
+    moduleAccessCache.set(companyId, { value, expiresAt: Date.now() + 5 * 60_000 });
+    return value;
+  })().finally(() => moduleAccessPending.delete(companyId));
+  moduleAccessPending.set(companyId, request);
+  return request;
+}
 
-  // A beállítás nélküli, korábban létrehozott cégeknél megőrizzük a régi működést.
-  return {
-    plan: typeof data.plan === 'string' ? data.plan : 'legacy',
-    enabledModules: configuredModules ?? [...moduleOrder],
-  };
+export async function warmProjectCreationContext() {
+  const companyId = await getAuthenticatedCompanyId();
+  await getCompanyModuleAccess(companyId);
 }
 
 function companyProjectsCollection(companyId: string) {
@@ -374,6 +390,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     title: typeof data.title === 'string' ? data.title : 'Névtelen projekt',
     status: typeof data.status === 'string' ? data.status : 'Folyamatban',
     lastAction: typeof data.lastAction === 'string' ? data.lastAction : 'Projekt létrehozva',
+    initialTask: typeof data.initialTask === 'string' ? data.initialTask : '',
     closed: data.closed === true,
     teamId: typeof data.teamId === 'string' ? data.teamId : null,
     client: (data.client as Project['client']) ?? {
@@ -493,6 +510,7 @@ export async function createNewInquiry(
   clientName: string,
   clientAddress: string,
   clientPhone: string,
+  initialTask = '',
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const moduleAccess = await getCompanyModuleAccess(companyId);
@@ -505,7 +523,8 @@ export async function createNewInquiry(
     code,
     title,
     status: 'Folyamatban',
-    lastAction: 'Felmérés elindítva',
+    lastAction: initialTask.trim() || 'Felmérés elindítva',
+    initialTask: initialTask.trim(),
     closed: false,
     teamId: null,
     client: {
