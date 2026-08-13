@@ -16,6 +16,9 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   }
 
   const pdf = await createQuotePdf(context);
+  const german = context.project.communicationLanguage === 'de';
+  const clientName = String(context.project.client?.name ?? (german ? 'Kundin/Kunde' : 'Ügyfelünk'));
+  const companyName = String(context.company.name ?? 'Envision CRM');
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST.value(),
     port: 465,
@@ -26,8 +29,10 @@ export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   await transporter.sendMail({
     from: `"${String(context.company.name ?? 'Envision CRM')}" <${SMTP_USER.value()}>`,
     to: email,
-    subject: `Árajánlat – ${String(context.project.title ?? context.quote.quoteNumber)}`,
-    text: `Tisztelt ${String(context.project.client?.name ?? 'Ügyfelünk')}!\n\nMellékelten küldjük a(z) ${context.quote.quoteNumber} számú árajánlatot, amely ${context.quote.validUntil}-ig érvényes.\n\nÜdvözlettel:\n${String(context.company.name ?? 'Envision CRM')}`,
+    subject: german ? `Angebot – ${String(context.project.title ?? context.quote.quoteNumber)}` : `Árajánlat – ${String(context.project.title ?? context.quote.quoteNumber)}`,
+    text: german
+      ? `Sehr geehrte(r) ${clientName},\n\nanbei senden wir Ihnen unser Angebot Nr. ${context.quote.quoteNumber}, gültig bis ${context.quote.validUntil}.\n\nMit freundlichen Grüßen\n${companyName}`
+      : `Tisztelt ${clientName}!\n\nMellékelten küldjük a(z) ${context.quote.quoteNumber} számú árajánlatot, amely ${context.quote.validUntil}-ig érvényes.\n\nÜdvözlettel:\n${companyName}`,
     attachments: [{ filename: quoteFilename(context.quote.quoteNumber), content: pdf }],
   });
 

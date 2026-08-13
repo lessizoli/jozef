@@ -59,10 +59,12 @@ import {
   updateTeam,
 } from '@/lib/teamService';
 import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMatrix, type PermissionMatrix } from '@/lib/permissionService';
+import { useI18n } from '@/lib/i18n';
+import { subscribeToCompanyDetails } from '@/lib/companyService';
 
-const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '', initialTask: '' };
+const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '', initialTask: '', communicationLanguage: 'hu' };
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
-const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '' };
+const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '', communicationLanguage: 'hu' };
 const emptySurvey: SurveyDraft = { customerNeeds: '', siteConditions: '', measurements: '', notes: '' };
 
 function dateInputValue(date: Date) {
@@ -134,6 +136,7 @@ function errorMessage(error: unknown) {
 }
 
 export default function Dashboard() {
+  const { t, locale } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedModule, setSelectedModule] = useState<ModuleKey>('survey');
@@ -158,6 +161,7 @@ export default function Dashboard() {
   const [userRole, setUserRole] = useState<MemberRole | 'superadmin' | 'admin'>('installer');
   const [permissionMatrix, setPermissionMatrix] = useState<PermissionMatrix>(defaultPermissionMatrix);
   const [projectModuleDeepLink, setProjectModuleDeepLink] = useState<ProjectModuleDeepLink | null>(null);
+  const [companyDefaultLanguage, setCompanyDefaultLanguage] = useState<'hu' | 'de'>('hu');
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -178,9 +182,9 @@ export default function Dashboard() {
     setProjects(items);
     setSelectedProject((current) => current ? items.find((item) => item.id === current.id) ?? null : null);
   }), []);
+  useEffect(() => subscribeToCompanyDetails((details) => setCompanyDefaultLanguage(details.defaultLanguage)), []);
 
   useEffect(() => { void warmProjectCreationContext().catch(() => undefined); }, []);
-
   useEffect(() => {
     const unsubscribers: Array<() => void> = [];
     let cancelled = false;
@@ -222,7 +226,7 @@ export default function Dashboard() {
   ], [members, teams]);
   const rolePermissions = userRole in permissionMatrix ? permissionMatrix[userRole as MemberRole] : defaultPermissionMatrix.company_admin;
 
-  const monthTitle = calendarMonth.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long' });
+  const monthTitle = calendarMonth.toLocaleDateString(locale, { year: 'numeric', month: 'long' });
   const calendarDraftProject = calendarDraft
     ? projects.find((project) => project.id === calendarDraft.projectId) ?? null
     : null;
@@ -248,14 +252,19 @@ export default function Dashboard() {
     setShowCreate(false);
     await runAction(async () => {
       try {
-        await createNewInquiry('', submitted.title, submitted.clientName, submitted.address, submitted.phone, submitted.initialTask);
-        setActionMessage('Az új projekt létrejött.');
+        await createNewInquiry('', submitted.title, submitted.clientName, submitted.address, submitted.phone, submitted.initialTask, submitted.communicationLanguage);
+        setActionMessage(t('Az új projekt létrejött.'));
       } catch (error) {
         setInquiryForm(submitted);
         setShowCreate(true);
         throw error;
       }
     });
+  }
+
+  function openCreateProject() {
+    setInquiryForm((current) => current.title || current.clientName ? current : { ...current, communicationLanguage: companyDefaultLanguage });
+    setShowCreate(true);
   }
 
   async function changeModuleStatus(status: string) {
@@ -307,6 +316,7 @@ export default function Dashboard() {
       email: project.client.email,
       phone: project.client.phone,
       address: project.client.address,
+      communicationLanguage: project.communicationLanguage,
     });
   }
 
@@ -591,7 +601,7 @@ export default function Dashboard() {
       <DashboardHeader
         view={view}
         onViewChange={setView}
-        onCreate={() => setShowCreate(true)}
+        onCreate={openCreateProject}
         onSignOut={() => void signOut(auth)}
       />
 
@@ -609,9 +619,9 @@ export default function Dashboard() {
           </div>
         )}
         {view === 'projects' ? (
-          <><div><h2 className="text-2xl font-bold tracking-tight text-slate-800">Projektek</h2><p className="mt-1 text-sm text-slate-500">A projektek automatikusan az aktuális munkaszakasz szerint rendezve jelennek meg.</p></div><ProjectList
+          <><div><h2 className="text-2xl font-bold tracking-tight text-slate-800">{t('Projektek')}</h2><p className="mt-1 text-sm text-slate-500">{t('A projektek automatikusan az aktuális munkaszakasz szerint rendezve jelennek meg.')}</p></div><ProjectList
             projects={projects}
-            onCreate={() => setShowCreate(true)}
+            onCreate={openCreateProject}
             onOpenModule={openModule}
             onEditProject={openProjectDetails}
             onCloseProject={requestProjectClose}
