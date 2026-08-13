@@ -93,6 +93,13 @@ const de: Record<string, string> = {
   'A vállalkozói díj a teljesítést követően, számla alapján fizetendő.': 'Der Werklohn ist nach Leistungserbringung auf Grundlage der Rechnung zu zahlen.',
   'Biztosan {status} állapotú az ajánlat? {consequence}': 'Soll das Angebot wirklich den Status {status} erhalten? {consequence}',
   'Biztosan {status} állapotú a szerződés? {consequence}': 'Soll der Vertrag wirklich den Status {status} erhalten? {consequence}',
+  'Projekt létrehozva': 'Projekt angelegt', 'Felmérés elindítva': 'Aufmaß gestartet', 'Ajánlat elmentve': 'Angebot gespeichert', 'Szerződés elmentve': 'Vertrag gespeichert',
+  'Projektadatok módosítva': 'Projektdaten geändert', 'Projekt lezárva': 'Projekt abgeschlossen', 'Kivitelező csapat hozzárendelve': 'Ausführungsteam zugewiesen', 'Csapat-hozzárendelés törölve': 'Teamzuweisung entfernt',
+  'Kivitelezési munkafázisok frissítve': 'Ausführungsphasen aktualisiert', 'Kivitelezési napló frissítve': 'Ausführungsprotokoll aktualisiert', 'Helyszíni kép feltöltve': 'Baustellenfoto hochgeladen', 'Kivitelezés elindítva': 'Ausführung gestartet',
+  'Kivitelezés befejezve, átadás elindítva': 'Ausführung abgeschlossen, Übergabe gestartet', 'Kivitelezés befejezve, a projekt lezárható': 'Ausführung abgeschlossen, das Projekt kann abgeschlossen werden',
+  'Átadási adatok frissítve': 'Übergabedaten aktualisiert', 'Átadás befejezve, Pénzügy elindítva': 'Übergabe abgeschlossen, Finanzen gestartet', 'Átadás befejezve, a projekt lezárható': 'Übergabe abgeschlossen, das Projekt kann abgeschlossen werden',
+  'Szerződés aláírva, Kivitelezés elindítva': 'Vertrag unterzeichnet, Ausführung gestartet', 'Szerződés aláírva': 'Vertrag unterzeichnet',
+  'Számla fizetve, a projekt lezárható': 'Rechnung bezahlt, das Projekt kann abgeschlossen werden', 'Pénzügyi adatok mentve': 'Finanzdaten gespeichert', 'A számla ismét határidőn belül van': 'Die Rechnung liegt wieder innerhalb der Zahlungsfrist', 'Számla dokumentum feltöltve': 'Rechnungsdokument hochgeladen',
 };
 
 const huByDe = Object.fromEntries(Object.entries(de).map(([hu, german]) => [german, hu]));
@@ -100,6 +107,14 @@ export function translateText(text: string, language: Language) {
   const hu = huByDe[text] ?? text;
   if (language === 'hu') return hu;
   if (de[hu]) return de[hu];
+  const stageChange = hu.match(/^(Felmérés|Ajánlat|Szerződés|Kivitelezés|Befejezés|Pénzügy) elkészült, (Felmérés|Ajánlat|Szerződés|Kivitelezés|Befejezés|Pénzügy) elindítva$/);
+  if (stageChange) return `${de[stageChange[1]] ?? stageChange[1]} abgeschlossen, ${de[stageChange[2]] ?? stageChange[2]} gestartet`;
+  const statusChange = hu.match(/^(Felmérés|Ajánlat|Szerződés|Kivitelezés|Befejezés|Pénzügy): (.+)$/);
+  if (statusChange) return `${de[statusChange[1]] ?? statusChange[1]}: ${de[statusChange[2]] ?? statusChange[2]}`;
+  const reset = hu.match(/^Projekt visszaállítva: (.+) – (.+)$/);
+  if (reset) return `Projekt zurückgesetzt: ${de[reset[1]] ?? reset[1]} – ${de[reset[2]] ?? reset[2]}`;
+  const closable = hu.match(/^(Felmérés|Ajánlat|Szerződés|Kivitelezés|Befejezés|Pénzügy) elkészült, a projekt lezárható$/);
+  if (closable) return `${de[closable[1]] ?? closable[1]} abgeschlossen, das Projekt kann abgeschlossen werden`;
   const count = hu.match(/^(\d+) (kép|elem)$/);
   return count ? `${count[1]} ${count[2] === 'kép' ? 'Bilder' : 'Elemente'}` : hu;
 }
@@ -135,7 +150,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (auth.currentUser) void setDoc(doc(db, 'users', auth.currentUser.uid), { language: next, languageUpdatedAt: serverTimestamp() }, { merge: true });
   }, []);
   useEffect(() => { document.documentElement.lang = language; }, [language]);
-  const value = useMemo<I18nContextValue>(() => ({ language, setLanguage, locale: language === 'de' ? 'de-DE' : 'hu-HU', t: (key, values) => interpolate(language === 'de' ? de[key] ?? key : key, values) }), [language, setLanguage]);
+  const value = useMemo<I18nContextValue>(() => ({ language, setLanguage, locale: language === 'de' ? 'de-DE' : 'hu-HU', t: (key, values) => interpolate(translateText(key, language), values) }), [language, setLanguage]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
