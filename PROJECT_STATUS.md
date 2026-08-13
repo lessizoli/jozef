@@ -60,6 +60,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Bővíthető HU/DE nyelvi rendszer felhasználói nyelvmentéssel és fejléc-/belépési nyelvválasztóval
 - [x] Céges alapértelmezett és projektenkénti kommunikációs nyelv, a pénznemtől külön kezelve
 - [x] Német ajánlati és szerződéses PDF-ek, valamint német ajánlat- és szerződésküldő e-mailek
+- [x] A Dokumentumok, Naptár, Munkatársak, céges beállítások, teljes projektlap és valamennyi modul dinamikus HU/DE felületi fordítása
 
 - [x] Firebase bejelentkezés és céges felhasználói profilok
 - [x] Önálló cégregisztráció SuperAdmin közreműködése nélkül

@@ -23,6 +23,7 @@ import {
 import { subscribeToCompanyProjects, type ModuleKey, type Project } from '@/lib/projectService';
 import { downloadProjectQuote, openProjectQuote } from '@/lib/quoteService';
 import { getUserContext, subscribeToMembers, type CompanyMember } from '@/lib/teamService';
+import { useI18n } from '@/lib/i18n';
 
 type Scope = ModuleKey | 'general';
 type MaterialKind = 'attachment' | 'construction' | 'quote-pdf' | 'contract-pdf' | 'signed-contract' | 'invoice';
@@ -51,7 +52,7 @@ function dateValue(value: unknown) {
   const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(String(value));
   return Number.isNaN(date.valueOf()) ? null : date;
 }
-function readableDate(value: unknown) { return dateValue(value)?.toLocaleString('hu-HU') ?? 'Nincs dátum'; }
+function readableDate(value: unknown, locale = 'hu-HU', empty = 'Nincs dátum') { return dateValue(value)?.toLocaleString(locale) ?? empty; }
 function timestamp(value: unknown) { return dateValue(value)?.valueOf() ?? 0; }
 function isImageMaterial(item: ProjectMaterial) {
   return (item.kind === 'attachment' && item.attachment?.type === 'image')
@@ -59,6 +60,7 @@ function isImageMaterial(item: ProjectMaterial) {
 }
 
 function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
+  const { t } = useI18n();
   const [url, setUrl] = useState('');
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -78,10 +80,11 @@ function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
 
   return url
     ? <Image src={url} alt={item.title} fill unoptimized sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" className="object-cover transition duration-200 group-hover:scale-105" />
-    : <div className="flex h-full items-center justify-center bg-slate-100 px-3 text-center text-xs font-medium text-slate-500">{failed ? 'Az előnézet nem tölthető be' : 'Kép betöltése…'}</div>;
+    : <div className="flex h-full items-center justify-center bg-slate-100 px-3 text-center text-xs font-medium text-slate-500">{failed ? t('Az előnézet nem tölthető be') : t('Kép betöltése…')}</div>;
 }
 
 export default function ProjectDocumentsPage() {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState('');
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
@@ -252,7 +255,7 @@ export default function ProjectDocumentsPage() {
   }
 
   return <main className="min-h-screen bg-slate-50 text-slate-900"><DashboardHeader view="documents"/><div className="mx-auto max-w-7xl space-y-6 px-5 py-6">
-    <div><h1 className="text-2xl font-bold">Projektanyagok</h1><p className="mt-1 text-sm text-slate-500">A projekt összes jegyzete, képe, dokumentuma és automatikus modulanyaga egy helyen.</p></div>
+    <div><h1 className="text-2xl font-bold">{t('Projektanyagok')}</h1><p className="mt-1 text-sm text-slate-500">{t('A projekt összes jegyzete, képe, dokumentuma és automatikus modulanyaga egy helyen.')}</p></div>
     <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 lg:grid-cols-3">
       <label className="text-xs font-semibold uppercase text-slate-500">Projekt<select value={projectId} onChange={(event) => { setAttachments([]); setConstructionEntries([]); setProjectId(event.target.value); }} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">{projects.length === 0 && <option value="">Nincs projekt</option>}{projects.map((item) => <option key={item.id} value={item.id}>{item.code} · {item.title}</option>)}</select></label>
       <label className="text-xs font-semibold uppercase text-slate-500">Új elem helye<select value={scope} onChange={(event) => { setScope(event.target.value as Scope); setPhaseId(''); }} className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100">{scopes.map((item) => <option key={item} value={item}>{scopeLabel(item)}</option>)}</select></label>
