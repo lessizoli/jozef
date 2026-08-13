@@ -1,22 +1,27 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
 import { moduleLabels } from '@/components/dashboard/dashboardConfig';
-import { openConstructionPhoto, subscribeToConstructionEntries, type ConstructionEntry } from '@/lib/constructionService';
-import { downloadProjectContract, downloadSignedContract } from '@/lib/contractService';
+import { subscribeToConstructionEntries, type ConstructionEntry } from '@/lib/constructionService';
+import { downloadProjectContract, downloadSignedContract, openProjectContract } from '@/lib/contractService';
 import { downloadProjectInvoice } from '@/lib/financeService';
 import {
   addProjectNote,
   deleteProjectAttachment,
+  downloadProtectedAttachment,
+  downloadProtectedStorageFile,
+  getProtectedStoragePreview,
   openProtectedAttachment,
+  openProtectedStorageFile,
   subscribeToProjectAttachments,
   uploadProjectDocument,
   uploadProjectImage,
   type ProjectAttachment,
 } from '@/lib/projectAttachments';
 import { subscribeToCompanyProjects, type ModuleKey, type Project } from '@/lib/projectService';
-import { downloadProjectQuote } from '@/lib/quoteService';
+import { downloadProjectQuote, openProjectQuote } from '@/lib/quoteService';
 import { getUserContext, subscribeToMembers, type CompanyMember } from '@/lib/teamService';
 
 type Scope = ModuleKey | 'general';
@@ -48,6 +53,32 @@ function dateValue(value: unknown) {
 }
 function readableDate(value: unknown) { return dateValue(value)?.toLocaleString('hu-HU') ?? 'Nincs dátum'; }
 function timestamp(value: unknown) { return dateValue(value)?.valueOf() ?? 0; }
+function isImageMaterial(item: ProjectMaterial) {
+  return (item.kind === 'attachment' && item.attachment?.type === 'image')
+    || (item.kind === 'construction' && Boolean(item.storagePath));
+}
+
+function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    if (!item.storagePath) return undefined;
+    let active = true;
+    let objectUrl = '';
+    void getProtectedStoragePreview(item.storagePath).then((value) => {
+      objectUrl = value;
+      if (active) setUrl(value);
+      else URL.revokeObjectURL(value);
+    }).catch(() => undefined);
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [item.storagePath]);
+
+  return url
+    ? <Image src={url} alt={item.title} fill unoptimized sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" className="object-cover transition duration-200 group-hover:scale-105" />
+    : <div className="flex h-full items-center justify-center bg-slate-100 text-3xl text-slate-400" aria-label="Kép betöltése">▧</div>;
+}
 
 export default function ProjectDocumentsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -151,6 +182,8 @@ export default function ProjectDocumentsPage() {
   }, [attachments, constructionEntries, memberNames, project]);
 
   const visibleItems = materials.filter((item) => filter === 'all' || item.moduleKey === filter);
+  const visibleImages = visibleItems.filter(isImageMaterial);
+  const visibleDocuments = visibleItems.filter((item) => !isImageMaterial(item));
 
   async function run(action: () => Promise<void>) {
     setSaving(true); setError('');
@@ -172,7 +205,16 @@ export default function ProjectDocumentsPage() {
   async function openMaterial(item: ProjectMaterial) {
     if (!project) return;
     if (item.kind === 'attachment' && item.attachment) return openProtectedAttachment(item.attachment);
-    if (item.kind === 'construction' && item.storagePath) return openConstructionPhoto(item.storagePath);
+    if (item.kind === 'construction' && item.storagePath) return openProtectedStorageFile(item.storagePath);
+    if (item.kind === 'quote-pdf') return openProjectQuote(project.id);
+    if (item.kind === 'contract-pdf') return openProjectContract(project.id);
+    if ((item.kind === 'signed-contract' || item.kind === 'invoice') && item.storagePath) return openProtectedStorageFile(item.storagePath);
+  }
+
+  async function downloadMaterial(item: ProjectMaterial) {
+    if (!project) return;
+    if (item.kind === 'attachment' && item.attachment) return downloadProtectedAttachment(item.attachment);
+    if (item.kind === 'construction' && item.storagePath) return downloadProtectedStorageFile(item.storagePath, item.fileName ?? 'helyszini-kep');
     if (item.kind === 'quote-pdf') return downloadProjectQuote(project.id);
     if (item.kind === 'contract-pdf') return downloadProjectContract(project.id);
     if (item.kind === 'signed-contract') return downloadSignedContract(project.id);
@@ -193,6 +235,23 @@ export default function ProjectDocumentsPage() {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="font-bold">Kép</h2><p className="mt-1 text-sm text-slate-500">JPG, PNG, WEBP · legfeljebb 15 MB</p><label className="mt-5 block cursor-pointer rounded-xl border-2 border-dashed border-slate-700 p-8 text-center font-semibold hover:border-sky-500">+ Kép feltöltése<input type="file" accept="image/*" className="hidden" disabled={saving || !projectId} onChange={(event) => uploadFile(event, 'image')} /></label></section>
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="font-bold">Dokumentum</h2><input value={documentTitle} onChange={(event) => setDocumentTitle(event.target.value)} placeholder="Dokumentum megnevezése (opcionális)" className="mt-4 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5"/><label className="mt-3 block cursor-pointer rounded-xl border-2 border-dashed border-slate-700 p-5 text-center font-semibold hover:border-sky-500">+ Dokumentum feltöltése<input type="file" className="hidden" disabled={saving || !projectId} onChange={(event) => uploadFile(event, 'document')} /></label><p className="mt-2 text-xs text-slate-500">PDF, Word, Excel és más fájlok · legfeljebb 25 MB</p></section>
     </section>
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">A projekt összes anyaga</h2><span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-400">{visibleItems.length}</span></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{visibleItems.length === 0 ? <p className="col-span-full rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Nincs elem ebben a nézetben.</p> : visibleItems.map((item) => { const phase = phases.find((entry) => entry.id === item.phaseId); return <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/60 p-4"><div className="flex flex-wrap gap-2 text-xs"><span className="rounded bg-slate-800 px-2 py-1 text-sky-300">{scopeLabel(item.moduleKey)}</span><span className="rounded bg-slate-800 px-2 py-1 text-slate-300">{item.typeLabel}</span>{phase && <span className="rounded bg-slate-800 px-2 py-1 text-slate-400">{phase.title}</span>}</div><h3 className="mt-3 truncate font-semibold">{item.title}</h3>{item.text ? <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm text-slate-300">{item.text}</p> : item.fileName && <p className="mt-1 text-xs text-slate-500">{item.fileName}{item.size ? ` · ${readableSize(item.size)}` : ''}</p>}<p className="mt-3 text-xs text-slate-500">{item.createdBy} · {readableDate(item.createdAt)}</p><div className="mt-4 flex gap-4">{(item.kind !== 'construction' || item.storagePath) && !item.text && <button disabled={saving} onClick={() => void run(() => openMaterial(item))} className="text-xs font-semibold text-sky-300 disabled:opacity-40">{item.kind === 'attachment' && item.attachment?.type === 'image' ? 'Megnyitás' : 'Letöltés'}</button>}{item.kind === 'attachment' && item.attachment && <button disabled={saving} onClick={() => { if (window.confirm('Biztosan törlöd ezt a projektanyagot?')) void run(() => deleteProjectAttachment(projectId, item.attachment!)); }} className="text-xs font-semibold text-rose-400 disabled:opacity-40">Törlés</button>}</div></article>; })}</div></section>
+    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+      <div className="flex items-center justify-between"><h2 className="text-lg font-bold">A projekt összes anyaga</h2><span className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-600">{visibleItems.length}</span></div>
+      {visibleItems.length === 0 ? <p className="mt-5 rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Nincs elem ebben a nézetben.</p> : <>
+        {visibleImages.length > 0 && <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between"><h3 className="font-bold text-slate-800">Képgaléria</h3><span className="text-xs font-semibold text-slate-500">{visibleImages.length} kép</span></div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {visibleImages.map((item) => <article key={item.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <button type="button" disabled={saving} onClick={() => void run(() => openMaterial(item))} className="group relative block aspect-[4/3] w-full overflow-hidden bg-slate-100 text-left disabled:opacity-50"><MaterialThumbnail item={item} /></button>
+              <div className="p-3"><p className="truncate text-sm font-semibold text-slate-800">{item.title}</p><p className="mt-1 truncate text-xs text-slate-500">{scopeLabel(item.moduleKey)} · {readableDate(item.createdAt)}</p><div className="mt-3 flex gap-3"><button disabled={saving} onClick={() => void run(() => openMaterial(item))} className="text-xs font-bold text-sky-700 disabled:opacity-40">Megnézés</button><button disabled={saving} onClick={() => void run(() => downloadMaterial(item))} className="text-xs font-bold text-slate-600 disabled:opacity-40">Letöltés</button>{item.kind === 'attachment' && item.attachment && <button disabled={saving} onClick={() => { if (window.confirm('Biztosan törlöd ezt a projektanyagot?')) void run(() => deleteProjectAttachment(projectId, item.attachment!)); }} className="ml-auto text-xs font-bold text-rose-700 disabled:opacity-40">Törlés</button>}</div></div>
+            </article>)}
+          </div>
+        </div>}
+        {visibleDocuments.length > 0 && <div className="mt-7">
+          <div className="mb-3 flex items-center justify-between"><h3 className="font-bold text-slate-800">Dokumentumok és jegyzetek</h3><span className="text-xs font-semibold text-slate-500">{visibleDocuments.length} elem</span></div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{visibleDocuments.map((item) => { const phase = phases.find((entry) => entry.id === item.phaseId); return <article key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap gap-2 text-xs"><span className="rounded bg-slate-200 px-2 py-1 font-medium text-sky-800">{scopeLabel(item.moduleKey)}</span><span className="rounded bg-slate-200 px-2 py-1 text-slate-700">{item.typeLabel}</span>{phase && <span className="rounded bg-slate-200 px-2 py-1 text-slate-600">{phase.title}</span>}</div><h3 className="mt-3 truncate font-semibold text-slate-900">{item.title}</h3>{item.text ? <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm text-slate-700">{item.text}</p> : item.fileName && <p className="mt-1 text-xs text-slate-500">{item.fileName}{item.size ? ` · ${readableSize(item.size)}` : ''}</p>}<p className="mt-3 text-xs text-slate-500">{item.createdBy} · {readableDate(item.createdAt)}</p><div className="mt-4 flex gap-4">{!item.text && <><button disabled={saving} onClick={() => void run(() => openMaterial(item))} className="text-xs font-bold text-sky-700 disabled:opacity-40">Megnézés új ablakban</button><button disabled={saving} onClick={() => void run(() => downloadMaterial(item))} className="text-xs font-bold text-slate-600 disabled:opacity-40">Letöltés</button></>}{item.kind === 'attachment' && item.attachment && <button disabled={saving} onClick={() => { if (window.confirm('Biztosan törlöd ezt a projektanyagot?')) void run(() => deleteProjectAttachment(projectId, item.attachment!)); }} className="text-xs font-bold text-rose-700 disabled:opacity-40">Törlés</button>}</div></article>; })}</div>
+        </div>}
+      </>}
+    </section>
   </div></main>;
 }

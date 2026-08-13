@@ -67,12 +67,31 @@ export async function saveProjectQuote(projectId: string, draft: QuoteDraft) {
 
 type QuotePdfResponse = { filename: string; contentBase64: string };
 
+function quotePdfBlob(contentBase64: string) {
+  const binary = window.atob(contentBase64);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+export async function openProjectQuote(projectId: string) {
+  const previewWindow = window.open('', '_blank');
+  try {
+    const callable = httpsCallable<{ projectId: string }, QuotePdfResponse>(functions, 'generateQuotePdf');
+    const { data } = await callable({ projectId });
+    const url = URL.createObjectURL(quotePdfBlob(data.contentBase64));
+    if (previewWindow) previewWindow.location.href = url;
+    else window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    previewWindow?.close();
+    throw error;
+  }
+}
+
 export async function downloadProjectQuote(projectId: string) {
   const callable = httpsCallable<{ projectId: string }, QuotePdfResponse>(functions, 'generateQuotePdf');
   const { data } = await callable({ projectId });
-  const binary = window.atob(data.contentBase64);
-  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  const url = URL.createObjectURL(quotePdfBlob(data.contentBase64));
   const link = document.createElement('a');
   link.href = url;
   link.download = data.filename;
