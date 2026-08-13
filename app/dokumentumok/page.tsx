@@ -162,12 +162,12 @@ export default function ProjectDocumentsPage() {
 
     if (project.quoteData?.quoteNumber) result.push({
       id: 'quote-pdf', kind: 'quote-pdf', moduleKey: 'quote', typeLabel: 'Automatikus PDF',
-      title: `Árajánlat ${project.quoteData.quoteNumber}`, fileName: `${project.quoteData.quoteNumber}.pdf`,
+      title: t('Árajánlat {number}', { number: project.quoteData.quoteNumber }), fileName: `${project.quoteData.quoteNumber}.pdf`,
       createdAt: project.quoteData.sentAt ?? project.quoteData.updatedAt, createdBy: 'Rendszer',
     });
     if (project.contractData?.contractNumber) result.push({
       id: 'contract-pdf', kind: 'contract-pdf', moduleKey: 'contract', typeLabel: 'Automatikus PDF',
-      title: `Szerződés ${project.contractData.contractNumber}`, fileName: `${project.contractData.contractNumber}.pdf`,
+      title: t('Szerződés {number}', { number: project.contractData.contractNumber }), fileName: `${project.contractData.contractNumber}.pdf`,
       createdAt: project.contractData.sentAt ?? project.contractData.updatedAt, createdBy: 'Rendszer',
     });
     const signed = project.contractData?.signedDocument;
@@ -185,7 +185,7 @@ export default function ProjectDocumentsPage() {
       storagePath: invoice.storagePath,
     });
     return result.sort((left, right) => timestamp(right.createdAt) - timestamp(left.createdAt));
-  }, [attachments, constructionEntries, memberNames, project]);
+  }, [attachments, constructionEntries, memberNames, project, t]);
 
   const visibleItems = materials.filter((item) => filter === 'all' || item.moduleKey === filter);
   const visibleImages = visibleItems.filter(isImageMaterial);
