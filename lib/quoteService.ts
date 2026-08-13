@@ -2,9 +2,11 @@ import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from './firebase';
 import type { QuoteData, QuoteItem } from './projectService';
+import type { Project } from './projectService';
+import { getCurrencyPreview } from './currencyService';
 import { getUserContext } from './teamService';
 
-export type QuoteDraft = Pick<QuoteData, 'quoteNumber' | 'issueDate' | 'validUntil' | 'items' | 'note'>;
+export type QuoteDraft = Pick<QuoteData, 'quoteNumber' | 'issueDate' | 'validUntil' | 'items' | 'note' | 'originalLanguage' | 'noteTranslations'>;
 
 export type QuoteTotals = {
   netTotal: number;
@@ -27,6 +29,7 @@ function normalizeDraft(draft: QuoteDraft): QuoteDraft {
   const items = draft.items.map((item) => ({
     ...item,
     description: item.description.trim(),
+    descriptionTranslations: item.descriptionTranslations ?? {},
     unit: item.unit.trim() || 'db',
     quantity: Number(item.quantity),
     unitPrice: Number(item.unitPrice),
@@ -48,17 +51,21 @@ function normalizeDraft(draft: QuoteDraft): QuoteDraft {
     validUntil: draft.validUntil,
     items,
     note: draft.note.trim(),
+    originalLanguage: draft.originalLanguage ?? 'hu',
+    noteTranslations: draft.noteTranslations ?? {},
   };
 }
 
-export async function saveProjectQuote(projectId: string, draft: QuoteDraft) {
+export async function saveProjectQuote(project: Project, draft: QuoteDraft) {
   const context = await getUserContext();
   const normalized = normalizeDraft(draft);
   const totals = calculateQuoteTotals(normalized.items);
-  await updateDoc(doc(db, 'companies', context.companyId, 'projects', projectId), {
+  const exchangeRate = await getCurrencyPreview(normalized.issueDate, project.currency, totals.grossTotal, project.country === 'DE' ? 'ECB' : 'MNB');
+  await updateDoc(doc(db, 'companies', context.companyId, 'projects', project.id), {
     quoteData: {
       ...normalized,
       ...totals,
+      exchangeRate,
       updatedAt: serverTimestamp(),
     },
     lastAction: 'Ajánlat elmentve',

@@ -12,6 +12,8 @@ import { downloadSignedContract } from './contracts/downloadSignedContract';
 import { registerTenant } from './auth/registerTenant'; // Ez az importod
 import { inviteCompanyMember, updateCompanyMember } from './auth/manageCompanyMembers';
 import { createCompanyForCurrentUser, switchActiveCompany } from './auth/companyMemberships';
+import { cacheDailyExchangeRates, getCurrencyPreview } from './localization/exchangeRates';
+import { translateProjectText } from './localization/translateText';
 
 // Figyelj rá, hogy mind a kettő itt legyen bent az exportban!
 export { 
@@ -25,4 +27,7 @@ export {
   updateCompanyMember,
   createCompanyForCurrentUser,
   switchActiveCompany,
+  getCurrencyPreview,
+  cacheDailyExchangeRates,
+  translateProjectText,
 };

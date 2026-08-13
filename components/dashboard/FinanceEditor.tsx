@@ -49,7 +49,7 @@ export default function FinanceEditor({ project, saving, onRun }: Props) {
       <p className="text-xs uppercase tracking-wider text-slate-500">{t('Pénzügyi állapot')}</p>
       <div className="mt-2 flex items-center justify-between gap-3">
         <strong className={overdue ? 'text-rose-300' : paid ? 'text-emerald-300' : 'text-amber-300'}>{t(overdue ? 'Késedelem' : project.modules.finance.status)}</strong>
-        <span className="text-sm text-slate-300">{new Intl.NumberFormat(locale, { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 }).format(draft.grossAmount || 0)}</span>
+        <span className="text-sm text-slate-300">{new Intl.NumberFormat(locale, { style: 'currency', currency: project.currency, maximumFractionDigits: project.currency === 'HUF' ? 0 : 2 }).format(draft.grossAmount || 0)}</span>
       </div>
       {overdue && <p className="mt-2 text-sm text-rose-200">{t('A fizetési határidő lejárt:')} {draft.dueDate}</p>}
     </section>
@@ -57,7 +57,7 @@ export default function FinanceEditor({ project, saving, onRun }: Props) {
     <section className="space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-semibold text-slate-500">Számlaszám<input disabled={paid} value={draft.invoiceNumber} onChange={(event) => setDraft({ ...draft, invoiceNumber: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-60" /></label>
-        <label className="text-xs font-semibold text-slate-500">Bruttó összeg (Ft)<input disabled={paid} type="number" min="0" step="1" value={draft.grossAmount} onChange={(event) => setDraft({ ...draft, grossAmount: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-60" /></label>
+        <label className="text-xs font-semibold text-slate-500">{t('Bruttó összeg')} ({project.currency})<input disabled={paid} type="number" min="0" step={project.currency === 'HUF' ? '1' : '0.01'} value={draft.grossAmount} onChange={(event) => setDraft({ ...draft, grossAmount: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-60" /></label>
         <label className="text-xs font-semibold text-slate-500">Kiállítás dátuma<input disabled={paid} type="date" value={draft.invoiceDate} onChange={(event) => setDraft({ ...draft, invoiceDate: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-60" /></label>
         <label className="text-xs font-semibold text-slate-500">Fizetési határidő<input disabled={paid} type="date" value={draft.dueDate} onChange={(event) => setDraft({ ...draft, dueDate: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 disabled:opacity-60" /></label>
       </div>

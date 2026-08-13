@@ -46,9 +46,12 @@ function partyBlock(doc: PDFKit.PDFDocument, title: string, lines: string[]) {
 export async function createContractPdf({ project, contract }: ContractContext) {
   const german = project.communicationLanguage === 'de';
   const locale = german ? 'de-DE' : 'hu-HU';
-  const money = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
-  const currency = typeof project.currency === 'string' ? project.currency : 'HUF';
-  const formatMoney = (value: number) => `${money.format(value)} ${currency === 'HUF' ? 'Ft' : currency}`;
+  const baseCurrency = project.currency === 'EUR' ? 'EUR' : 'HUF';
+  const currency = german ? 'EUR' : 'HUF';
+  const rate = Number(project.quoteData?.exchangeRate?.hufPerEur);
+  const convert = (value: number) => baseCurrency === currency ? value : baseCurrency === 'HUF' ? value / rate : value * rate;
+  const localizedMoney = new Intl.NumberFormat(locale, { maximumFractionDigits: currency === 'HUF' ? 0 : 2, minimumFractionDigits: currency === 'EUR' ? 2 : 0 });
+  const formatMoney = (value: number) => `${localizedMoney.format(convert(value))} ${currency === 'HUF' ? 'Ft' : '€'}`;
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, bufferPages: true });
     const chunks: Buffer[] = [];

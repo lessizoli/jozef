@@ -17,9 +17,13 @@ export async function createQuotePdf({ project, company, quote }: QuoteContext) 
   const language = project.communicationLanguage === 'de' ? 'de' : 'hu';
   const text = labels[language];
   const locale = language === 'de' ? 'de-DE' : 'hu-HU';
-  const money = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 });
-  const currency = typeof project.currency === 'string' ? project.currency : 'HUF';
-  const formatMoney = (value: number) => `${money.format(value)} ${currency === 'HUF' ? 'Ft' : currency}`;
+  const baseCurrency = project.currency === 'EUR' ? 'EUR' : 'HUF';
+  const currency = language === 'de' ? 'EUR' : 'HUF';
+  const rate = Number(project.quoteData?.exchangeRate?.hufPerEur);
+  const convert = (value: number) => baseCurrency === currency ? value : baseCurrency === 'HUF' ? value / rate : value * rate;
+  const localizedMoney = new Intl.NumberFormat(locale, { maximumFractionDigits: currency === 'HUF' ? 0 : 2, minimumFractionDigits: currency === 'EUR' ? 2 : 0 });
+  const formatMoney = (value: number) => `${localizedMoney.format(convert(value))} ${currency === 'HUF' ? 'Ft' : '€'}`;
+  const localizedDescription = (item: typeof quote.items[number]) => item.descriptionTranslations?.[language] || item.description;
   return new Promise<Buffer>((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, bufferPages: true });
     const chunks: Buffer[] = [];
@@ -66,7 +70,7 @@ export async function createQuotePdf({ project, company, quote }: QuoteContext) 
 
     header();
     quote.items.forEach((item) => {
-      const description = `${text.categories[item.category]} · ${item.description}`;
+      const description = `${text.categories[item.category]} · ${localizedDescription(item)}`;
       const rowHeight = Math.max(28, doc.heightOfString(description, { width: widths.description }) + 12);
       if (doc.y + rowHeight > 740) {
         doc.addPage();
@@ -94,9 +98,10 @@ export async function createQuotePdf({ project, company, quote }: QuoteContext) 
     doc.text(formatMoney(quote.grossTotal), totalX + 82, totalsY + 53, { width: 105, align: 'right' });
     doc.y = totalsY + 94;
 
-    if (quote.note) {
+    const localizedNote = quote.noteTranslations?.[language] || quote.note;
+    if (localizedNote) {
       doc.font('Bold').fontSize(9).fillColor('#64748b').text(text.note, 48, doc.y, { width: 499 });
-      doc.moveDown(0.4).font('Regular').fontSize(9).fillColor('#334155').text(quote.note, 48, doc.y, { width: 499, lineGap: 2 });
+      doc.moveDown(0.4).font('Regular').fontSize(9).fillColor('#334155').text(localizedNote, 48, doc.y, { width: 499, lineGap: 2 });
     }
 
     const range = doc.bufferedPageRange();

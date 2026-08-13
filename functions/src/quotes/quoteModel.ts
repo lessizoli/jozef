@@ -1,11 +1,13 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { DocumentData, DocumentReference, getFirestore } from 'firebase-admin/firestore';
+import { getOfficialRate } from '../localization/exchangeRates';
 
 const db = getFirestore();
 
 export type QuoteLine = {
   category: 'material' | 'labor' | 'other';
   description: string;
+  descriptionTranslations?: Record<string, string>;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -18,6 +20,8 @@ export type Quote = {
   validUntil: string;
   items: QuoteLine[];
   note: string;
+  originalLanguage: 'hu' | 'de';
+  noteTranslations?: Record<string, string>;
   netTotal: number;
   vatTotal: number;
   grossTotal: number;
@@ -47,6 +51,7 @@ function readQuote(value: unknown): Quote {
     return {
       category,
       description: typeof item.description === 'string' ? item.description.trim() : '',
+      descriptionTranslations: item.descriptionTranslations && typeof item.descriptionTranslations === 'object' ? item.descriptionTranslations as Record<string, string> : {},
       quantity: finiteNumber(item.quantity),
       unit: typeof item.unit === 'string' ? item.unit.trim() : '',
       unitPrice: finiteNumber(item.unitPrice),
@@ -73,6 +78,8 @@ function readQuote(value: unknown): Quote {
     validUntil: String(data.validUntil),
     items,
     note: typeof data.note === 'string' ? data.note : '',
+    originalLanguage: data.originalLanguage === 'de' ? 'de' : 'hu',
+    noteTranslations: data.noteTranslations && typeof data.noteTranslations === 'object' ? data.noteTranslations as Record<string, string> : {},
     netTotal: totals.net,
     vatTotal: totals.vat,
     grossTotal: totals.net + totals.vat,
@@ -97,6 +104,14 @@ export async function getQuoteContext(callerUid: string | undefined, projectId: 
   if (!projectSnap.exists) throw new HttpsError('not-found', 'A projekt nem található.');
   const project = projectSnap.data() ?? {};
   const company = companySnap.data() ?? {};
+  if (!project.quoteData?.exchangeRate?.hufPerEur && project.quoteData?.issueDate) {
+    const rate = await getOfficialRate(String(project.quoteData.issueDate), project.country === 'DE' ? 'ECB' : 'MNB');
+    const baseCurrency = project.currency === 'EUR' ? 'EUR' : 'HUF';
+    const originalAmount = Number(project.quoteData.grossTotal ?? 0);
+    const exchangeRate = { ...rate, baseCurrency, targetCurrency: baseCurrency === 'HUF' ? 'EUR' : 'HUF', originalAmount, convertedAmount: baseCurrency === 'HUF' ? originalAmount / rate.hufPerEur : originalAmount * rate.hufPerEur };
+    project.quoteData.exchangeRate = exchangeRate;
+    await projectRef.update({ 'quoteData.exchangeRate': exchangeRate });
+  }
 
   return { projectRef, project, company, quote: readQuote(project.quoteData) };
 }

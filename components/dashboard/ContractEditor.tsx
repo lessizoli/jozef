@@ -4,6 +4,7 @@ import type { ContractData } from '@/lib/projectService';
 
 type Props = {
   draft: ContractDraft;
+  currency: 'HUF' | 'EUR';
   clientName: string;
   clientAddress: string;
   clientEmail: string;
@@ -52,6 +53,7 @@ function readableDate(value: unknown) {
 
 export default function ContractEditor({
   draft,
+  currency,
   clientName,
   clientAddress,
   clientEmail,
@@ -155,10 +157,10 @@ export default function ContractEditor({
       </Field>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Bruttó vállalkozói díj (Ft)">
+        <Field label={`Bruttó vállalkozói díj (${currency})`}>
           <input type="number" min="0" step="1" required disabled={disabled} value={draft.grossAmount} onChange={(event) => onChange({ ...draft, grossAmount: Number(event.target.value) })} className={inputClass} />
         </Field>
-        <Field label="Előleg (Ft)">
+        <Field label={`Előleg (${currency})`}>
           <input type="number" min="0" step="1" disabled={disabled} value={draft.depositAmount} onChange={(event) => onChange({ ...draft, depositAmount: Number(event.target.value) })} className={inputClass} />
         </Field>
       </div>

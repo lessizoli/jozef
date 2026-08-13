@@ -62,9 +62,9 @@ import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMat
 import { useI18n } from '@/lib/i18n';
 import { subscribeToCompanyDetails } from '@/lib/companyService';
 
-const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', phone: '', initialTask: '', communicationLanguage: 'hu' };
+const emptyInquiry: InquiryForm = { title: '', clientName: '', address: '', country: 'HU', phone: '', initialTask: '', communicationLanguage: 'hu' };
 const emptySchedule: ScheduleDraft = { date: '', time: '', assignedTo: '', assigneeId: '', assigneeType: '' };
-const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '', communicationLanguage: 'hu' };
+const emptyDetails: ProjectDetailsDraft = { title: '', clientName: '', email: '', phone: '', address: '', country: 'HU', communicationLanguage: 'hu' };
 const emptySurvey: SurveyDraft = { customerNeeds: '', siteConditions: '', measurements: '', notes: '' };
 
 function dateInputValue(date: Date) {
@@ -252,7 +252,7 @@ export default function Dashboard() {
     setShowCreate(false);
     await runAction(async () => {
       try {
-        await createNewInquiry('', submitted.title, submitted.clientName, submitted.address, submitted.phone, submitted.initialTask, submitted.communicationLanguage);
+        await createNewInquiry('', submitted.title, submitted.clientName, submitted.address, submitted.phone, submitted.initialTask, submitted.communicationLanguage, submitted.country);
         setActionMessage(t('Az új projekt létrejött.'));
       } catch (error) {
         setInquiryForm(submitted);
@@ -316,6 +316,7 @@ export default function Dashboard() {
       email: project.client.email,
       phone: project.client.phone,
       address: project.client.address,
+      country: project.country,
       communicationLanguage: project.communicationLanguage,
     });
   }
@@ -423,7 +424,7 @@ export default function Dashboard() {
   async function saveSelectedQuote() {
     if (!selectedProject || !quoteDraft) return;
     await runAction(async () => {
-      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await saveProjectQuote(selectedProject, quoteDraft);
       setActionMessage('Az ajánlat mentve.');
     });
   }
@@ -442,7 +443,7 @@ export default function Dashboard() {
   async function downloadSelectedQuote() {
     if (!selectedProject || !quoteDraft) return;
     await runAction(async () => {
-      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await saveProjectQuote(selectedProject, quoteDraft);
       await downloadProjectQuote(selectedProject.id);
       setActionMessage('A PDF elkészült és letöltődött.');
     });
@@ -451,7 +452,7 @@ export default function Dashboard() {
   async function sendSelectedQuote() {
     if (!selectedProject || !quoteDraft) return;
     await runAction(async () => {
-      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await saveProjectQuote(selectedProject, quoteDraft);
       await sendProjectQuote(selectedProject.id);
       setActionMessage(t('Az ajánlat elküldve: {email}', { email: selectedProject.client.email }));
     });
@@ -464,7 +465,7 @@ export default function Dashboard() {
       : 'A projekt nem lép tovább a Szerződés fázisba.';
     if (!window.confirm(t('Biztosan {status} állapotú az ajánlat? {consequence}', { status: t(status).toLocaleLowerCase(locale), consequence: t(consequence) }))) return;
     await runAction(async () => {
-      await saveProjectQuote(selectedProject.id, quoteDraft);
+      await saveProjectQuote(selectedProject, quoteDraft);
       await updateProjectModuleStatus(selectedProject.id, 'quote', status);
       setActionMessage(status === 'Elfogadva' ? 'Az ajánlat elfogadva, a Szerződés elindult.' : 'Az ajánlat elutasítva.');
     });

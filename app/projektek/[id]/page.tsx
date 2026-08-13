@@ -60,7 +60,6 @@ function ProtectedThumbnail({ title, load, onOpen }: { title: string; load: () =
 export default function FullProjectPage() {
   const { t, locale } = useI18n();
   const readableDate = (value: unknown) => dateValue(value)?.toLocaleString(locale) ?? t('Nincs rögzítve');
-  const currency = new Intl.NumberFormat(locale, { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 });
   const params = useParams<{ id: string }>();
   const projectId = decodeURIComponent(params.id);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -91,6 +90,7 @@ export default function FullProjectPage() {
   const phases = project.constructionData?.phases ?? [];
   const activeModule = currentModule(project);
   const activeModuleUrl = `/?project=${encodeURIComponent(project.id)}&module=${activeModule}`;
+  const currency = new Intl.NumberFormat(locale, { style: 'currency', currency: project.currency, maximumFractionDigits: project.currency === 'HUF' ? 0 : 2 });
 
   return <main className="min-h-screen bg-slate-50 text-slate-900"><DashboardHeader view="project"/><div className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6">
     <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

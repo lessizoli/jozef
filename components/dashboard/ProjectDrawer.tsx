@@ -235,6 +235,7 @@ export default function ProjectDrawer({
           ) : (
             <QuoteEditor
               draft={quote}
+              project={project}
               clientEmail={project.client.email}
               saving={saving}
               onChange={onQuoteChange}
@@ -256,6 +257,7 @@ export default function ProjectDrawer({
           ) : (
             <ContractEditor
               draft={contract}
+              currency={project.currency}
               clientName={project.client.name}
               clientAddress={project.client.address}
               clientEmail={project.client.email}
@@ -320,6 +322,7 @@ export default function ProjectDrawer({
               <input disabled={project.closed} value={details.address} onChange={(event) => onDetailsChange({ ...details, address: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:opacity-60" />
             </div>
             <div><label className="mb-1 block text-xs font-semibold text-slate-500">Kommunikáció és dokumentumok nyelve</label><select disabled={project.closed} value={details.communicationLanguage} onChange={(event) => onDetailsChange({ ...details, communicationLanguage: event.target.value as 'hu' | 'de' })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:opacity-60"><option value="hu">Magyar</option><option value="de">Deutsch</option></select></div>
+            <div><label className="mb-1 block text-xs font-semibold text-slate-500">{t('Kivitelezés országa')}</label><select disabled={project.closed} value={details.country} onChange={(event) => onDetailsChange({ ...details, country: event.target.value as 'HU' | 'DE' })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:opacity-60"><option value="HU">{t('Magyarország — HUF')}</option><option value="DE">{t('Németország — EUR')}</option></select></div>
             {!project.closed && (
               <button disabled={saving} className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">
                 {saving ? 'Mentés…' : 'Projektadatok mentése'}

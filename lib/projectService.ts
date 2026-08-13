@@ -33,6 +33,7 @@ export type QuoteItem = {
   id: string;
   category: QuoteItemCategory;
   description: string;
+  descriptionTranslations?: Partial<Record<'hu' | 'de', string>>;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -45,9 +46,12 @@ export type QuoteData = {
   validUntil: string;
   items: QuoteItem[];
   note: string;
+  originalLanguage?: 'hu' | 'de';
+  noteTranslations?: Partial<Record<'hu' | 'de', string>>;
   netTotal: number;
   vatTotal: number;
   grossTotal: number;
+  exchangeRate?: import('./currencyService').ExchangeRateSnapshot;
   updatedAt?: unknown;
   sentAt?: unknown;
 };
@@ -116,6 +120,8 @@ export interface Project {
   lastAction?: string;
   initialTask?: string;
   communicationLanguage: 'hu' | 'de';
+  country: 'HU' | 'DE';
+  currency: 'HUF' | 'EUR';
   closed?: boolean;
   teamId?: string | null;
   client: {
@@ -129,6 +135,8 @@ export interface Project {
     siteConditions: string;
     measurements: string;
     notes: string;
+    originalLanguage?: 'hu' | 'de';
+    translations?: Record<string, { customerNeeds: string; siteConditions: string; measurements: string; notes: string }>;
     updatedAt?: unknown;
   };
   quoteData?: QuoteData;
@@ -152,6 +160,7 @@ export type ProjectDetailsUpdate = {
   email: string;
   phone: string;
   address: string;
+  country: 'HU' | 'DE';
   communicationLanguage: 'hu' | 'de';
 };
 
@@ -300,9 +309,12 @@ function normalizeQuoteData(value: unknown, projectCode: string): QuoteData | un
     validUntil: typeof data.validUntil === 'string' ? data.validUntil : '',
     items,
     note: typeof data.note === 'string' ? data.note : '',
+    originalLanguage: data.originalLanguage === 'de' ? 'de' : 'hu',
+    noteTranslations: (data.noteTranslations ?? {}) as QuoteData['noteTranslations'],
     netTotal: numberOrZero(data.netTotal ?? data.totalCost),
     vatTotal: numberOrZero(data.vatTotal),
     grossTotal: numberOrZero(data.grossTotal ?? data.totalCost),
+    exchangeRate: data.exchangeRate as QuoteData['exchangeRate'],
     updatedAt: data.updatedAt,
     sentAt: data.sentAt,
   };
@@ -394,6 +406,8 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     lastAction: typeof data.lastAction === 'string' ? data.lastAction : 'Projekt létrehozva',
     initialTask: typeof data.initialTask === 'string' ? data.initialTask : '',
     communicationLanguage: data.communicationLanguage === 'de' ? 'de' : 'hu',
+    country: data.country === 'DE' ? 'DE' : 'HU',
+    currency: data.currency === 'EUR' ? 'EUR' : 'HUF',
     closed: data.closed === true,
     teamId: typeof data.teamId === 'string' ? data.teamId : null,
     client: (data.client as Project['client']) ?? {
@@ -407,6 +421,8 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
       siteConditions: stringValue((data.surveyData as Record<string, unknown>).siteConditions),
       measurements: stringValue((data.surveyData as Record<string, unknown>).measurements),
       notes: stringValue((data.surveyData as Record<string, unknown>).notes),
+      originalLanguage: (data.surveyData as Record<string, unknown>).originalLanguage === 'de' ? 'de' : 'hu',
+      translations: ((data.surveyData as Record<string, unknown>).translations ?? {}) as Project['surveyData'] extends infer S ? S extends { translations?: infer T } ? T : never : never,
       updatedAt: (data.surveyData as Record<string, unknown>).updatedAt,
     } : undefined,
     quoteData: normalizeQuoteData(data.quoteData, code),
@@ -515,6 +531,7 @@ export async function createNewInquiry(
   clientPhone: string,
   initialTask = '',
   communicationLanguage: 'hu' | 'de' = 'hu',
+  country: 'HU' | 'DE' = 'HU',
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const moduleAccess = await getCompanyModuleAccess(companyId);
@@ -530,6 +547,8 @@ export async function createNewInquiry(
     lastAction: initialTask.trim() || 'Felmérés elindítva',
     initialTask: initialTask.trim(),
     communicationLanguage,
+    country,
+    currency: country === 'DE' ? 'EUR' : 'HUF',
     closed: false,
     teamId: null,
     client: {
@@ -637,7 +656,7 @@ export async function updateProjectModuleStatus(
 
 export async function saveProjectSurvey(
   project: Project,
-  survey: { customerNeeds: string; siteConditions: string; measurements: string; notes: string },
+  survey: { customerNeeds: string; siteConditions: string; measurements: string; notes: string; originalLanguage?: 'hu' | 'de'; translations?: Record<string, { customerNeeds: string; siteConditions: string; measurements: string; notes: string }> },
 ) {
   const companyId = await getAuthenticatedCompanyId();
   if (project.companyId !== companyId) throw new Error('A projekt nem ehhez a céghez tartozik.');
@@ -740,6 +759,8 @@ export async function updateProjectDetails(projectId: string, details: ProjectDe
     'client.email': details.email.trim(),
     'client.phone': details.phone.trim(),
     'client.address': details.address.trim(),
+    country: details.country,
+    currency: details.country === 'DE' ? 'EUR' : 'HUF',
     communicationLanguage: details.communicationLanguage,
     lastAction: 'Projektadatok módosítva',
     updatedAt: serverTimestamp(),
