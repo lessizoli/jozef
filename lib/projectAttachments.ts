@@ -169,15 +169,51 @@ export async function openProtectedAttachment(attachment: ProjectAttachment) {
     if (attachment.downloadURL) window.open(attachment.downloadURL, '_blank', 'noopener,noreferrer');
     return;
   }
-  const blob = await getBlob(ref(storage, attachment.storagePath));
+  await openProtectedStorageFile(attachment.storagePath);
+}
+
+export async function openProtectedStorageFile(storagePath: string) {
+  const previewWindow = window.open('', '_blank');
+  try {
+    const blob = await getBlob(ref(storage, storagePath));
+    const url = URL.createObjectURL(blob);
+    if (previewWindow) previewWindow.location.href = url;
+    else window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (error) {
+    previewWindow?.close();
+    throw error;
+  }
+}
+
+export async function downloadProtectedStorageFile(storagePath: string, fileName: string) {
+  const blob = await getBlob(ref(storage, storagePath));
   const url = URL.createObjectURL(blob);
-  window.open(url, '_blank', 'noopener,noreferrer');
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
+export async function downloadProtectedAttachment(attachment: ProjectAttachment) {
+  if (!attachment.storagePath) {
+    if (attachment.downloadURL) window.open(attachment.downloadURL, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  await downloadProtectedStorageFile(attachment.storagePath, attachment.fileName ?? 'projektanyag');
 }
 
 export async function getProtectedAttachmentPreview(attachment: ProjectAttachment) {
   if (!attachment.storagePath) return attachment.downloadURL ?? '';
   const blob = await getBlob(ref(storage, attachment.storagePath));
+  return URL.createObjectURL(blob);
+}
+
+export async function getProtectedStoragePreview(storagePath: string) {
+  const blob = await getBlob(ref(storage, storagePath));
   return URL.createObjectURL(blob);
 }
 
