@@ -94,7 +94,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] A felmérési eredmény és a státuszváltás atomi, régi projektekkel kompatibilis mentése
 - [x] A Felmérés oldalsó panel automatikus bezárása sikeres mentés után
 - [x] Gyorsítótárazott felhasználói és cégkontextus a gyakori megnyitási és mentési műveletekhez
-- [x] Safari-kompatibilis Firestore-kapcsolat és előtöltött projektlétrehozási konfiguráció a hosszú mentési várakozás ellen
+- [x] Kényszerített long-polling Safari-kompatibilis Firestore-kapcsolat és előtöltött projektlétrehozási konfiguráció a hosszú mentési várakozás ellen
 - [x] Projektlapról közvetlenül nyitható, aktuális modulhoz igazodó szerkesztőfelületek
 - [x] Új projekt alapfeladatának rögzítése és megjelenítése
 - [x] Ajánlati tétel hozzáadása az utolsó tétel alatt, valamint látható szerkesztési hibaüzenetek

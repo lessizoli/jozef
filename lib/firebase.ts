@@ -18,7 +18,7 @@ const app = existingApp ? getApp() : initializeApp(firebaseConfig);
 
 export const db = existingApp
   ? getFirestore(app)
-  : initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+  : initializeFirestore(app, { experimentalForceLongPolling: true });
 export const auth = getAuth(app);
 export const functions = getFunctions(app, 'europe-west1');
 export const storage = getStorage(app);
