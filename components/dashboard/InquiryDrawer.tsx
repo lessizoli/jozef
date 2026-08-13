@@ -35,6 +35,7 @@ export default function InquiryDrawer({ open, form, saving, onChange, onClose, o
             <label className="mb-1.5 block text-xs font-semibold text-slate-400">{t('Helyszín / cím')}</label>
             <input value={form.address} onChange={(event) => onChange({ ...form, address: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" />
           </div>
+          <div><label className="mb-1.5 block text-xs font-semibold text-slate-400">{t('Kivitelezés országa *')}</label><select required value={form.country} onChange={(event) => onChange({ ...form, country: event.target.value as 'HU' | 'DE' })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500"><option value="HU">{t('Magyarország — HUF')}</option><option value="DE">{t('Németország — EUR')}</option></select></div>
           <div>
             <label className="mb-1.5 block text-xs font-semibold text-slate-400">{t('Telefonszám')}</label>
             <input value={form.phone} onChange={(event) => onChange({ ...form, phone: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-3 outline-none focus:border-sky-500" />

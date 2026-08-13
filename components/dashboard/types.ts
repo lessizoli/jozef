@@ -8,6 +8,7 @@ export type InquiryForm = {
   title: string;
   clientName: string;
   address: string;
+  country: 'HU' | 'DE';
   phone: string;
   initialTask: string;
   communicationLanguage: 'hu' | 'de';
@@ -19,6 +20,7 @@ export type ProjectDetailsDraft = {
   email: string;
   phone: string;
   address: string;
+  country: 'HU' | 'DE';
   communicationLanguage: 'hu' | 'de';
 };
 
@@ -27,6 +29,8 @@ export type SurveyDraft = {
   siteConditions: string;
   measurements: string;
   notes: string;
+  originalLanguage?: 'hu' | 'de';
+  translations?: Partial<Record<'hu' | 'de', { customerNeeds: string; siteConditions: string; measurements: string; notes: string }>>;
 };
 
 export type ScheduleDraft = {

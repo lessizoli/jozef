@@ -1,10 +1,13 @@
-import { useMemo } from 'react';
-import type { QuoteItem, QuoteItemCategory } from '@/lib/projectService';
+import { useEffect, useMemo, useState } from 'react';
+import type { Project, QuoteItem, QuoteItemCategory } from '@/lib/projectService';
+import { formatCurrency, getCurrencyPreview, type ExchangeRateSnapshot } from '@/lib/currencyService';
 import { calculateQuoteTotals, type QuoteDraft } from '@/lib/quoteService';
 import { useI18n } from '@/lib/i18n';
+import { translateProjectText } from '@/lib/translationService';
 
 type Props = {
   draft: QuoteDraft;
+  project: Project;
   clientEmail: string;
   saving: boolean;
   onChange: (draft: QuoteDraft) => void;
@@ -43,10 +46,22 @@ function readableDate(value: unknown) {
   return Number.isNaN(date.valueOf()) ? '' : date.toLocaleString('hu-HU');
 }
 
-export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSave, onDownload, onSend, status, decisionAt, canDecide, onAccept, onReject }: Props) {
-  const { t, locale } = useI18n();
+export default function QuoteEditor({ draft, project, clientEmail, saving, onChange, onSave, onDownload, onSend, status, decisionAt, canDecide, onAccept, onReject }: Props) {
+  const { t, locale, language } = useI18n();
   const totals = useMemo(() => calculateQuoteTotals(draft.items), [draft.items]);
-  const moneyFormatter = useMemo(() => new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }), [locale]);
+  const [preview, setPreview] = useState<ExchangeRateSnapshot | null>(project.quoteData?.exchangeRate ?? null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [translating, setTranslating] = useState(false);
+  const sourceLanguage = draft.originalLanguage ?? language;
+  const targetLanguage = sourceLanguage === 'hu' ? 'de' : 'hu';
+  useEffect(() => {
+    if (!draft.issueDate || totals.grossTotal < 0) return;
+    const timer = window.setTimeout(() => {
+      setPreviewLoading(true);
+      void getCurrencyPreview(draft.issueDate, project.currency, totals.grossTotal, project.country === 'DE' ? 'ECB' : 'MNB').then(setPreview).finally(() => setPreviewLoading(false));
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [draft.issueDate, project.country, project.currency, totals.grossTotal]);
 
   function updateItem(id: string, update: Partial<QuoteItem>) {
     onChange({
@@ -57,6 +72,20 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
 
   function removeItem(id: string) {
     onChange({ ...draft, items: draft.items.filter((item) => item.id !== id) });
+  }
+
+  async function translateQuote() {
+    setTranslating(true);
+    try {
+      const translatedItems = await Promise.all(draft.items.map((item) => translateProjectText(item.description, sourceLanguage)));
+      const translatedNote = await translateProjectText(draft.note, sourceLanguage);
+      onChange({
+        ...draft,
+        originalLanguage: sourceLanguage,
+        items: draft.items.map((item, index) => ({ ...item, descriptionTranslations: { ...item.descriptionTranslations, [targetLanguage]: translatedItems[index].translatedText } })),
+        noteTranslations: { ...draft.noteTranslations, [targetLanguage]: translatedNote.translatedText },
+      });
+    } finally { setTranslating(false); }
   }
 
   return (
@@ -138,7 +167,7 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
                 </select>
               </div>
             </div>
-            <p className="mt-3 text-right text-sm font-medium text-slate-700">{t('Nettó:')} <span className="font-bold text-slate-950">{moneyFormatter.format(Math.round(item.quantity * item.unitPrice))} Ft</span></p>
+            <p className="mt-3 text-right text-sm font-medium text-slate-700">{t('Nettó:')} <span className="font-bold text-slate-950">{formatCurrency(Math.round(item.quantity * item.unitPrice), project.currency, locale)}</span></p>
           </div>
         ))}
         {draft.items.length > 0 && <div className="flex justify-end"><button type="button" onClick={() => onChange({ ...draft, items: [...draft.items, newItem()] })} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700">{t('+ Új tétel')}</button></div>}
@@ -149,10 +178,25 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
         <textarea rows={4} value={draft.note} onChange={(event) => onChange({ ...draft, note: event.target.value })} className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-sky-500" placeholder={t('Például: 50% előleg, fennmaradó összeg átadáskor.')} />
       </div>
 
+      <section className="rounded-xl border border-violet-500/40 bg-violet-950/20 p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <label className="text-xs font-semibold text-slate-400">{t('Eredeti szöveg nyelve')}<select value={sourceLanguage} onChange={(event) => onChange({ ...draft, originalLanguage: event.target.value as 'hu' | 'de' })} className="mt-1 block rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm"><option value="hu">Magyar</option><option value="de">Deutsch</option></select></label>
+          <button type="button" disabled={translating} onClick={() => void translateQuote()} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{translating ? t('Fordítás…') : t('Ajánlat szövegeinek fordítása')}</button>
+        </div>
+        <p className="mt-3 text-xs text-slate-400">{t('A gépi fordítás kézzel javítható, az eredeti szöveg változatlan marad.')}</p>
+        <div className="mt-4 space-y-3">
+          <p className="text-xs font-bold uppercase text-violet-300">{targetLanguage === 'de' ? 'Deutsch' : 'Magyar'}</p>
+          {draft.items.map((item, index) => <label key={item.id} className="block text-xs text-slate-400">{t('{index}. tétel', { index: index + 1 })}<input value={item.descriptionTranslations?.[targetLanguage] ?? ''} onChange={(event) => updateItem(item.id, { descriptionTranslations: { ...item.descriptionTranslations, [targetLanguage]: event.target.value } })} className="mt-1 w-full rounded-lg border border-violet-500/30 bg-slate-900 px-3 py-2 text-sm text-slate-100" /></label>)}
+          <label className="block text-xs text-slate-400">{t('Megjegyzés / fizetési feltétel')}<textarea rows={3} value={draft.noteTranslations?.[targetLanguage] ?? ''} onChange={(event) => onChange({ ...draft, noteTranslations: { ...draft.noteTranslations, [targetLanguage]: event.target.value } })} className="mt-1 w-full rounded-lg border border-violet-500/30 bg-slate-900 px-3 py-2 text-sm text-slate-100" /></label>
+        </div>
+      </section>
+
       <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-slate-900">
-        <div className="flex justify-between text-sm text-slate-800"><span>{t('Nettó összesen')}</span><strong>{moneyFormatter.format(totals.netTotal)} Ft</strong></div>
-        <div className="mt-2 flex justify-between text-sm text-slate-800"><span>{t('ÁFA összesen')}</span><strong>{moneyFormatter.format(totals.vatTotal)} Ft</strong></div>
-        <div className="mt-3 flex justify-between border-t border-emerald-300 pt-3 text-lg font-semibold text-emerald-900"><span>{t('Bruttó végösszeg')}</span><strong>{moneyFormatter.format(totals.grossTotal)} Ft</strong></div>
+        <div className="flex justify-between text-sm text-slate-800"><span>{t('Nettó összesen')}</span><strong>{formatCurrency(totals.netTotal, project.currency, locale)}</strong></div>
+        <div className="mt-2 flex justify-between text-sm text-slate-800"><span>{t('ÁFA összesen')}</span><strong>{formatCurrency(totals.vatTotal, project.currency, locale)}</strong></div>
+        <div className="mt-3 flex justify-between border-t border-emerald-300 pt-3 text-lg font-semibold text-emerald-900"><span>{t('Bruttó végösszeg')}</span><strong>{formatCurrency(totals.grossTotal, project.currency, locale)}</strong></div>
+        {preview && <div className="mt-3 border-t border-emerald-200 pt-3 text-sm"><div className="flex justify-between"><span>{t('Másik pénznemben')}</span><strong>{formatCurrency(preview.convertedAmount, preview.targetCurrency, locale)}</strong></div><p className="mt-1 text-xs text-slate-600">{preview.source} · {preview.rateDate} · 1 EUR = {preview.hufPerEur} HUF</p></div>}
+        {previewLoading && <p className="mt-2 text-xs text-slate-500">{t('Hivatalos árfolyam betöltése…')}</p>}
       </div>
 
       {!clientEmail && <p className="rounded-lg border border-amber-400 bg-amber-50 p-3 text-xs font-medium text-amber-900">{t('Kiküldéshez előbb add meg az ügyfél e-mail-címét a Projektadatok fülön.')}</p>}
