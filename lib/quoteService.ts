@@ -36,7 +36,8 @@ function normalizeDraft(draft: QuoteDraft): QuoteDraft {
   if (!draft.quoteNumber.trim()) throw new Error('Az ajánlat száma kötelező.');
   if (!draft.issueDate || !draft.validUntil) throw new Error('A kiállítás és az érvényesség dátuma kötelező.');
   if (draft.validUntil < draft.issueDate) throw new Error('Az érvényesség nem lehet korábbi a kiállítás dátumánál.');
-  if (items.length === 0 || items.some((item) => !item.description)) throw new Error('Legalább egy kitöltött ajánlati tétel szükséges.');
+  if (items.length === 0) throw new Error('Adj hozzá legalább egy ajánlati tételt.');
+  if (items.some((item) => !item.description)) throw new Error('Minden ajánlati tételnél add meg a megnevezést.');
   if (items.some((item) => !Number.isFinite(item.quantity) || item.quantity <= 0)) throw new Error('A mennyiségnek nullánál nagyobbnak kell lennie.');
   if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice < 0)) throw new Error('Az egységár nem lehet negatív.');
   if (items.some((item) => ![0, 5, 18, 27].includes(item.vatRate))) throw new Error('Érvénytelen ÁFA-kulcs.');

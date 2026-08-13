@@ -90,12 +90,11 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
+        <div>
           <div>
             <h3 className="font-bold">Ajánlati tételek</h3>
             <p className="text-xs text-slate-500">A végösszeg és az ÁFA automatikusan számolódik.</p>
           </div>
-          <button type="button" onClick={() => onChange({ ...draft, items: [...draft.items, newItem()] })} className="rounded-lg border border-sky-500/50 px-3 py-2 text-xs font-semibold text-sky-300 hover:bg-sky-500/10">+ Tétel</button>
         </div>
 
         {draft.items.length === 0 ? (
@@ -141,6 +140,7 @@ export default function QuoteEditor({ draft, clientEmail, saving, onChange, onSa
             <p className="mt-3 text-right text-sm font-medium text-slate-700">Nettó: <span className="font-bold text-slate-950">{money.format(Math.round(item.quantity * item.unitPrice))} Ft</span></p>
           </div>
         ))}
+        {draft.items.length > 0 && <div className="flex justify-end"><button type="button" onClick={() => onChange({ ...draft, items: [...draft.items, newItem()] })} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700">+ Új tétel</button></div>}
       </div>
 
       <div>
