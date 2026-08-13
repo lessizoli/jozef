@@ -453,7 +453,7 @@ export default function Dashboard() {
     await runAction(async () => {
       await saveProjectQuote(selectedProject.id, quoteDraft);
       await sendProjectQuote(selectedProject.id);
-      setActionMessage(`Az ajánlat elküldve: ${selectedProject.client.email}`);
+      setActionMessage(t('Az ajánlat elküldve: {email}', { email: selectedProject.client.email }));
     });
   }
 
@@ -462,7 +462,7 @@ export default function Dashboard() {
     const consequence = status === 'Elfogadva'
       ? 'A Szerződés fázis automatikusan elindul.'
       : 'A projekt nem lép tovább a Szerződés fázisba.';
-    if (!window.confirm(`Biztosan ${status.toLocaleLowerCase('hu-HU')} állapotú az ajánlat? ${consequence}`)) return;
+    if (!window.confirm(t('Biztosan {status} állapotú az ajánlat? {consequence}', { status: t(status).toLocaleLowerCase(locale), consequence: t(consequence) }))) return;
     await runAction(async () => {
       await saveProjectQuote(selectedProject.id, quoteDraft);
       await updateProjectModuleStatus(selectedProject.id, 'quote', status);
@@ -492,7 +492,7 @@ export default function Dashboard() {
     await runAction(async () => {
       await saveProjectContract(selectedProject.id, contractDraft);
       await sendProjectContract(selectedProject.id);
-      setActionMessage(`A szerződés elküldve: ${selectedProject.client.email}`);
+      setActionMessage(t('A szerződés elküldve: {email}', { email: selectedProject.client.email }));
     });
   }
 
@@ -501,7 +501,7 @@ export default function Dashboard() {
     const consequence = status === 'Aláírva'
       ? 'A Kivitelezés fázis automatikusan elindul.'
       : 'A projekt nem lép tovább a Kivitelezés fázisba.';
-    if (!window.confirm(`Biztosan ${status.toLocaleLowerCase('hu-HU')} állapotú a szerződés? ${consequence}`)) return;
+    if (!window.confirm(t('Biztosan {status} állapotú a szerződés? {consequence}', { status: t(status).toLocaleLowerCase(locale), consequence: t(consequence) }))) return;
     await runAction(async () => {
       await saveProjectContract(selectedProject.id, contractDraft);
       await updateProjectModuleStatus(selectedProject.id, 'contract', status);

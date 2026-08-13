@@ -8,6 +8,7 @@ import {
   uploadProjectInvoice,
   type FinanceDraft,
 } from '@/lib/financeService';
+import { useI18n } from '@/lib/i18n';
 
 type Props = { project: Project; saving: boolean; onRun: (action: () => Promise<void>, message: string) => void };
 
@@ -33,11 +34,8 @@ function initialDraft(project: Project): FinanceDraft {
   };
 }
 
-function money(value: number) {
-  return new Intl.NumberFormat('hu-HU', { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 }).format(value || 0);
-}
-
 export default function FinanceEditor({ project, saving, onRun }: Props) {
+  const { t, locale } = useI18n();
   const [draft, setDraft] = useState<FinanceDraft>(() => initialDraft(project));
   const paid = project.modules.finance.status === 'Fizetve' || Boolean(project.financeData?.paidAt);
   const overdue = !paid && Boolean(draft.dueDate) && draft.dueDate < dateValue(new Date());
@@ -48,12 +46,12 @@ export default function FinanceEditor({ project, saving, onRun }: Props) {
 
   return <div className="mt-6 space-y-5">
     <section className={`rounded-xl border p-4 ${overdue ? 'border-rose-500/60 bg-rose-500/10' : paid ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-slate-700 bg-slate-950/60'}`}>
-      <p className="text-xs uppercase tracking-wider text-slate-500">Pénzügyi állapot</p>
+      <p className="text-xs uppercase tracking-wider text-slate-500">{t('Pénzügyi állapot')}</p>
       <div className="mt-2 flex items-center justify-between gap-3">
-        <strong className={overdue ? 'text-rose-300' : paid ? 'text-emerald-300' : 'text-amber-300'}>{overdue ? 'Késedelem' : project.modules.finance.status}</strong>
-        <span className="text-sm text-slate-300">{money(draft.grossAmount)}</span>
+        <strong className={overdue ? 'text-rose-300' : paid ? 'text-emerald-300' : 'text-amber-300'}>{t(overdue ? 'Késedelem' : project.modules.finance.status)}</strong>
+        <span className="text-sm text-slate-300">{new Intl.NumberFormat(locale, { style: 'currency', currency: 'HUF', maximumFractionDigits: 0 }).format(draft.grossAmount || 0)}</span>
       </div>
-      {overdue && <p className="mt-2 text-sm text-rose-200">A fizetési határidő lejárt: {draft.dueDate}</p>}
+      {overdue && <p className="mt-2 text-sm text-rose-200">{t('A fizetési határidő lejárt:')} {draft.dueDate}</p>}
     </section>
 
     <section className="space-y-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
