@@ -77,6 +77,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Teljes projektlap alapadatokkal, modulfolyamattal, képekkel, feljegyzésekkel és dokumentumokkal
 - [x] Teljes képernyős árajánlat-szerkesztő
 - [x] Egységes alkalmazásfejléc és főmenü a teljes képernyős Ajánlat nézetben
+- [x] Kontrasztos ajánlati tételkártyák, összesítők, figyelmeztetések és inaktív műveletek
 - [x] Védetten betöltött, kattintható képbélyegképek a teljes projektlapon
 - [x] Egységes vízszintes alkalmazásfejléc a dashboardon, dokumentumtárban és projektlapon
 - [x] Világos naptárnézet olvasható, kontrasztos eseményfeliratokkal
