@@ -86,6 +86,7 @@ const de: Record<string, string> = {
   'Az ügyfél az átadást visszaigazolta': 'Der Kunde hat die Übergabe bestätigt', 'A fizetési határidő lejárt:': 'Die Zahlungsfrist ist abgelaufen:',
   '{index}. szakasz': '{index}. Abschnitt', '{images} kép · {notes} feljegyzés · {documents} dokumentum': '{images} Bilder · {notes} Notizen · {documents} Dokumente',
   'Árajánlat {number}': 'Angebot {number}', 'Szerződés {number}': 'Vertrag {number}',
+  'Dokumentum': 'Dokument', 'kép': 'Bilder', 'elem': 'Elemente', 'Döntés:': 'Entscheidung:', 'Letöltés:': 'Herunterladen:',
   'A vállalkozói díj a teljesítést követően, számla alapján fizetendő.': 'Der Werklohn ist nach Leistungserbringung auf Grundlage der Rechnung zu zahlen.',
   'Biztosan {status} állapotú az ajánlat? {consequence}': 'Soll das Angebot wirklich den Status {status} erhalten? {consequence}',
   'Biztosan {status} állapotú a szerződés? {consequence}': 'Soll der Vertrag wirklich den Status {status} erhalten? {consequence}',
