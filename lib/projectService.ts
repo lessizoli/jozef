@@ -115,6 +115,7 @@ export interface Project {
   status: string;
   lastAction?: string;
   initialTask?: string;
+  communicationLanguage: 'hu' | 'de';
   closed?: boolean;
   teamId?: string | null;
   client: {
@@ -151,6 +152,7 @@ export type ProjectDetailsUpdate = {
   email: string;
   phone: string;
   address: string;
+  communicationLanguage: 'hu' | 'de';
 };
 
 type UserProfile = {
@@ -391,6 +393,7 @@ function normalizeProject(id: string, companyId: string, data: Record<string, un
     status: typeof data.status === 'string' ? data.status : 'Folyamatban',
     lastAction: typeof data.lastAction === 'string' ? data.lastAction : 'Projekt létrehozva',
     initialTask: typeof data.initialTask === 'string' ? data.initialTask : '',
+    communicationLanguage: data.communicationLanguage === 'de' ? 'de' : 'hu',
     closed: data.closed === true,
     teamId: typeof data.teamId === 'string' ? data.teamId : null,
     client: (data.client as Project['client']) ?? {
@@ -511,6 +514,7 @@ export async function createNewInquiry(
   clientAddress: string,
   clientPhone: string,
   initialTask = '',
+  communicationLanguage: 'hu' | 'de' = 'hu',
 ) {
   const companyId = await getAuthenticatedCompanyId();
   const moduleAccess = await getCompanyModuleAccess(companyId);
@@ -525,6 +529,7 @@ export async function createNewInquiry(
     status: 'Folyamatban',
     lastAction: initialTask.trim() || 'Felmérés elindítva',
     initialTask: initialTask.trim(),
+    communicationLanguage,
     closed: false,
     teamId: null,
     client: {
@@ -735,6 +740,7 @@ export async function updateProjectDetails(projectId: string, details: ProjectDe
     'client.email': details.email.trim(),
     'client.phone': details.phone.trim(),
     'client.address': details.address.trim(),
+    communicationLanguage: details.communicationLanguage,
     lastAction: 'Projektadatok módosítva',
     updatedAt: serverTimestamp(),
   });

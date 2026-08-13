@@ -19,6 +19,8 @@ export const sendContractWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, S
   }
 
   const pdf = await createContractPdf(context);
+  const german = context.project.communicationLanguage === 'de';
+  const clientName = String(context.project.client?.name ?? (german ? 'Kundin/Kunde' : 'Ügyfelünk'));
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST.value(),
     port: 465,
@@ -29,8 +31,10 @@ export const sendContractWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, S
   await transporter.sendMail({
     from: `"${String(context.company.name ?? context.contract.contractorName)}" <${SMTP_USER.value()}>`,
     to: email,
-    subject: `Szerződés - ${String(context.project.title ?? context.contract.contractNumber)}`,
-    text: `Tisztelt ${String(context.project.client?.name ?? 'Ügyfelünk')}!\n\nMellékelten küldjük a(z) ${context.contract.contractNumber} számú szerződéstervezetet. Kérjük, átolvasás és elfogadás után juttassa vissza az aláírt példányt.\n\nÜdvözlettel:\n${context.contract.contractorName}`,
+    subject: german ? `Vertrag – ${String(context.project.title ?? context.contract.contractNumber)}` : `Szerződés - ${String(context.project.title ?? context.contract.contractNumber)}`,
+    text: german
+      ? `Sehr geehrte(r) ${clientName},\n\nanbei senden wir Ihnen den Vertragsentwurf Nr. ${context.contract.contractNumber}. Bitte senden Sie uns nach Prüfung und Annahme ein unterzeichnetes Exemplar zurück.\n\nMit freundlichen Grüßen\n${context.contract.contractorName}`
+      : `Tisztelt ${clientName}!\n\nMellékelten küldjük a(z) ${context.contract.contractNumber} számú szerződéstervezetet. Kérjük, átolvasás és elfogadás után juttassa vissza az aláírt példányt.\n\nÜdvözlettel:\n${context.contract.contractorName}`,
     attachments: [{ filename: contractFilename(context.contract.contractNumber), content: pdf }],
   });
 

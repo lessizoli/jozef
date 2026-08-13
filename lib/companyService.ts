@@ -14,12 +14,13 @@ export type CompanyDetails = {
   representative: string;
   bankAccount: string;
   plan?: string;
+  defaultLanguage: 'hu' | 'de';
 };
 
 export type CompanyMembership = { companyId: string; companyName: string; role: string; active: boolean };
 
 const emptyCompany: CompanyDetails = {
-  name: '', taxNumber: '', address: '', email: '', phone: '', website: '', representative: '', bankAccount: '',
+  name: '', taxNumber: '', address: '', email: '', phone: '', website: '', representative: '', bankAccount: '', defaultLanguage: 'hu',
 };
 
 function normalize(data: Record<string, unknown>): CompanyDetails {
@@ -34,6 +35,7 @@ function normalize(data: Record<string, unknown>): CompanyDetails {
     representative: text('representative'),
     bankAccount: text('bankAccount'),
     plan: text('plan'),
+    defaultLanguage: data.defaultLanguage === 'de' ? 'de' : 'hu',
   };
 }
 
@@ -63,6 +65,7 @@ export async function updateCompanyDetails(details: CompanyDetails) {
     website: details.website.trim(),
     representative: details.representative.trim(),
     bankAccount: details.bankAccount.trim(),
+    defaultLanguage: details.defaultLanguage,
     updatedAt: serverTimestamp(),
     updatedBy: auth.currentUser?.uid ?? '',
   }, { merge: true });

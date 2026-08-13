@@ -10,6 +10,7 @@ export type InquiryForm = {
   address: string;
   phone: string;
   initialTask: string;
+  communicationLanguage: 'hu' | 'de';
 };
 
 export type ProjectDetailsDraft = {
@@ -18,6 +19,7 @@ export type ProjectDetailsDraft = {
   email: string;
   phone: string;
   address: string;
+  communicationLanguage: 'hu' | 'de';
 };
 
 export type SurveyDraft = {

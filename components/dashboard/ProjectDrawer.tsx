@@ -10,6 +10,7 @@ import CompletionEditor from './CompletionEditor';
 import FinanceEditor from './FinanceEditor';
 import SurveyEditor from './SurveyEditor';
 import type { AssignmentOption, ContractDraft, ProjectDetailsDraft, QuoteDraft, ScheduleDraft, SurveyDraft } from './types';
+import { useI18n } from '@/lib/i18n';
 
 export type ProjectDrawerMode = 'module' | 'survey' | 'quote' | 'contract' | 'construction' | 'completion' | 'finance' | 'details';
 
@@ -96,6 +97,7 @@ export default function ProjectDrawer({
   onDismiss,
   onConstructionAction,
 }: Props) {
+  const { t } = useI18n();
   const [mode, setMode] = useState<ProjectDrawerMode>(initialMode);
   const [confirmingClose, setConfirmingClose] = useState(initialConfirmClose);
 
@@ -110,38 +112,38 @@ export default function ProjectDrawer({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-slate-500">{project.code}</p>
-              {project.closed && <span className="rounded bg-slate-800 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-400">Lezárt</span>}
+              {project.closed && <span className="rounded bg-slate-800 px-2 py-0.5 text-[11px] font-bold uppercase text-slate-400">{t('Lezárt')}</span>}
             </div>
             <h2 className="mt-1 text-xl font-bold">{project.title}</h2>
             <p className="mt-1 text-sm text-slate-400">{project.client.name}</p>
           </div>
-          <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label="Bezárás">✕</button>
+          <button type="button" onClick={onDismiss} className="rounded-lg bg-slate-800 px-3 py-2 text-slate-400" aria-label={t('Bezárás')}>✕</button>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
           <button type="button" onClick={() => setMode('module')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'module' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
-            Folyamat kezelése
+            {t('Folyamat kezelése')}
           </button>
           <button type="button" disabled={!project.modules.quote.enabled} onClick={() => setMode('quote')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'quote' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
-            Ajánlat
+            {t('Ajánlat')}
           </button>
           <button type="button" disabled={!project.modules.contract.enabled} onClick={() => setMode('contract')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'contract' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
-            Szerződés
+            {t('Szerződés')}
           </button>
           <button type="button" disabled={!project.modules.construction.enabled} onClick={() => setMode('construction')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'construction' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
-            Kivitelezés
+            {t('Kivitelezés')}
           </button>
           <button type="button" disabled={!project.modules.completion.enabled} onClick={() => setMode('completion')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'completion' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
-            Befejezés
+            {t('Befejezés')}
           </button>
           <button type="button" disabled={!project.modules.finance.enabled} onClick={() => setMode('finance')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'finance' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}>
-            Pénzügy
+            {t('Pénzügy')}
           </button>
           <button type="button" onClick={() => setMode('details')} className={`rounded-lg border px-3 py-2 text-left text-sm ${mode === 'details' ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'}`}>
-            Projektadatok
+            {t('Projektadatok')}
           </button>
           <Link href={`/dokumentumok?project=${encodeURIComponent(project.id)}`} className="rounded-lg border border-slate-700 px-3 py-2 text-left text-sm text-slate-400 hover:border-sky-500 hover:text-sky-300">
-            Projektanyagok
+            {t('Projektanyagok')}
           </Link>
         </div>
 
@@ -163,7 +165,7 @@ export default function ProjectDrawer({
                   }}
                   className={`rounded-lg border px-3 py-2 text-left text-sm ${selectedModule === key ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-slate-700 text-slate-400'} disabled:cursor-not-allowed disabled:opacity-40`}
                 >
-                  {moduleLabels[key]}
+                  {t(moduleLabels[key])}
                 </button>
               ))}
             </div>
@@ -173,22 +175,22 @@ export default function ProjectDrawer({
               </div>
             ) : (
               <form onSubmit={onSaveSchedule} className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-                <p className="text-xs uppercase tracking-wider text-slate-500">Kiválasztott modul</p>
-                <h3 className="mt-1 text-lg font-bold">{moduleLabels[selectedModule]}</h3>
-                <p className="mt-2 text-sm text-slate-400">Jelenlegi státusz: <span className="font-semibold text-slate-200">{getProjectModuleDisplayStatus(project, selectedModule)}</span></p>
-                {selectedModule === 'survey' && <button type="button" onClick={() => setMode('survey')} className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-500">Felmérési űrlap indítása</button>}
+                <p className="text-xs uppercase tracking-wider text-slate-500">{t('Kiválasztott modul')}</p>
+                <h3 className="mt-1 text-lg font-bold">{t(moduleLabels[selectedModule])}</h3>
+                <p className="mt-2 text-sm text-slate-400">{t('Jelenlegi státusz:')} <span className="font-semibold text-slate-200">{t(getProjectModuleDisplayStatus(project, selectedModule))}</span></p>
+                {selectedModule === 'survey' && <button type="button" onClick={() => setMode('survey')} className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-500">{t('Felmérési űrlap indítása')}</button>}
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Dátum</label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">{t('Dátum')}</label>
                     <input type="date" value={schedule.date} onChange={(event) => onScheduleChange({ ...schedule, date: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-semibold text-slate-500">Kezdési idő</label>
+                    <label className="mb-1 block text-xs font-semibold text-slate-500">{t('Kezdési idő')}</label>
                     <input type="time" value={schedule.time} onChange={(event) => onScheduleChange({ ...schedule, time: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500" />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <label className="mb-1 block text-xs font-semibold text-slate-500">Felelős munkatárs / csapat</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-500">{t('Felelős munkatárs / csapat')}</label>
                   <select
                     value={schedule.assigneeId ? `${schedule.assigneeType}:${schedule.assigneeId}` : ''}
                     onChange={(event) => {
@@ -197,12 +199,12 @@ export default function ProjectDrawer({
                     }}
                     className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500"
                   >
-                    <option value="">Nincs hozzárendelve</option>
-                    <optgroup label="Munkatársak">{assignmentOptions.filter((item) => item.type === 'member').map((item) => <option key={`member-${item.id}`} value={`member:${item.id}`}>{item.label}</option>)}</optgroup>
-                    <optgroup label="Csapatok">{assignmentOptions.filter((item) => item.type === 'team').map((item) => <option key={`team-${item.id}`} value={`team:${item.id}`}>{item.label}</option>)}</optgroup>
+                    <option value="">{t('Nincs hozzárendelve')}</option>
+                    <optgroup label={t('Munkatársak')}>{assignmentOptions.filter((item) => item.type === 'member').map((item) => <option key={`member-${item.id}`} value={`member:${item.id}`}>{item.label}</option>)}</optgroup>
+                    <optgroup label={t('Csapatok')}>{assignmentOptions.filter((item) => item.type === 'team').map((item) => <option key={`team-${item.id}`} value={`team:${item.id}`}>{item.label}</option>)}</optgroup>
                   </select>
                 </div>
-                <button disabled={saving} className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">Időpont mentése</button>
+                <button disabled={saving} className="mt-3 w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">{t('Időpont mentése')}</button>
                 <div className="mt-5 space-y-2">
                   {moduleStatuses[selectedModule].map((status) => (
                     <button
@@ -212,7 +214,7 @@ export default function ProjectDrawer({
                       onClick={() => onStatusChange(status)}
                       className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-left text-sm hover:border-sky-500 disabled:opacity-40"
                     >
-                      {status}
+                      {t(status)}
                     </button>
                   ))}
                 </div>
@@ -317,6 +319,7 @@ export default function ProjectDrawer({
               <label className="mb-1 block text-xs font-semibold text-slate-500">Helyszín / cím</label>
               <input disabled={project.closed} value={details.address} onChange={(event) => onDetailsChange({ ...details, address: event.target.value })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:opacity-60" />
             </div>
+            <div><label className="mb-1 block text-xs font-semibold text-slate-500">Kommunikáció és dokumentumok nyelve</label><select disabled={project.closed} value={details.communicationLanguage} onChange={(event) => onDetailsChange({ ...details, communicationLanguage: event.target.value as 'hu' | 'de' })} className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-sky-500 disabled:opacity-60"><option value="hu">Magyar</option><option value="de">Deutsch</option></select></div>
             {!project.closed && (
               <button disabled={saving} className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold hover:bg-sky-500 disabled:opacity-50">
                 {saving ? 'Mentés…' : 'Projektadatok mentése'}

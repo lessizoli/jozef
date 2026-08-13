@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createAdditionalCompany, subscribeToCompanyDetails, updateCompanyDetails, type CompanyDetails } from '@/lib/companyService';
 
-const emptyDetails: CompanyDetails = { name: '', taxNumber: '', address: '', email: '', phone: '', website: '', representative: '', bankAccount: '' };
+const emptyDetails: CompanyDetails = { name: '', taxNumber: '', address: '', email: '', phone: '', website: '', representative: '', bankAccount: '', defaultLanguage: 'hu' };
 
 export default function CompanyDetailsEditor({ canEdit }: { canEdit: boolean }) {
   const [details, setDetails] = useState<CompanyDetails>(emptyDetails);
@@ -40,6 +40,7 @@ export default function CompanyDetailsEditor({ canEdit }: { canEdit: boolean }) 
       {field('email', 'Központi e-mail', { type: 'email' })}
       {field('phone', 'Telefonszám', { type: 'tel' })}
       <div className="sm:col-span-2">{field('website', 'Weboldal', { type: 'url', placeholder: 'https://…' })}</div>
+      <label className="text-sm font-semibold text-slate-600">Alapértelmezett kommunikációs nyelv<select disabled={!canEdit || saving} value={details.defaultLanguage} onChange={(event) => setDetails({ ...details, defaultLanguage: event.target.value as 'hu' | 'de' })} className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-sky-500 disabled:bg-slate-100"><option value="hu">Magyar</option><option value="de">Deutsch</option></select></label>
       <div className="flex items-center gap-3 sm:col-span-2 lg:col-span-4">{canEdit ? <button disabled={saving || !details.name.trim()} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-500 disabled:opacity-40">{saving ? 'Mentés…' : 'Céges adatok mentése'}</button> : <p className="text-xs text-slate-500">Az adatokat csak céges adminisztrátor módosíthatja.</p>}{message && <p role="status" className="text-sm font-semibold text-emerald-600">{message}</p>}{error && <p role="alert" className="text-sm font-semibold text-rose-600">{error}</p>}</div>
     </form>
   </section>;
