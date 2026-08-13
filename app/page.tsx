@@ -238,7 +238,7 @@ export default function Dashboard() {
     try {
       await action();
     } catch (error) {
-      setActionError(errorMessage(error));
+      setActionError(t(errorMessage(error)));
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,6 @@
 # Envision CRM – projektállapot és mérföldkövek
 
-Utolsó frissítés: 2026. augusztus 11.
+Utolsó frissítés: 2026. augusztus 13.
 
 Ez a fájl az Envision CRM fejlesztésének központi állapotlapja. Új fejlesztés megkezdése előtt ezt kell elolvasni, befejezés után pedig frissíteni kell.
 
@@ -60,6 +60,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Bővíthető HU/DE nyelvi rendszer felhasználói nyelvmentéssel és fejléc-/belépési nyelvválasztóval
 - [x] Céges alapértelmezett és projektenkénti kommunikációs nyelv, a pénznemtől külön kezelve
 - [x] Német ajánlati és szerződéses PDF-ek, valamint német ajánlat- és szerződésküldő e-mailek
+- [x] A munkatárs-, csapat-, jogosultság- és naptárfelületek teljes HU/DE lokalizációja, dinamikus szerepkörökkel és napnevekkel
 - [x] A Dokumentumok, Naptár, Munkatársak, céges beállítások, teljes projektlap és valamennyi modul dinamikus HU/DE felületi fordítása
 
 - [x] Firebase bejelentkezés és céges felhasználói profilok
