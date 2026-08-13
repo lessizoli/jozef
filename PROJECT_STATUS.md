@@ -68,6 +68,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] A dashboard felesleges összesítőkártyáinak eltávolítása
 - [x] Világos, modern alkalmazásmegjelenés
 - [x] Projektek összecsukható munkaszakasz-csoportokban
+- [x] Alapból zárt projektcsoportok; a Csúszásban csoport csak tartalom esetén nyílik ki automatikusan
 - [x] Kiemelt, munkaszakasztól független „Csúszásban” projektcsoport
 - [x] Lejárt vagy késésre jelölt modulok egységes „Csúszás” / „Késedelem” megjelenítése minden projektnézetben
 - [x] Moduláris projektfolyamat és állapotszínezés
