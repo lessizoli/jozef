@@ -99,7 +99,7 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Egységes projekt-dokumentumtár jegyzetekhez, képekhez és általános dokumentumokhoz
 - [x] Dokumentumok modul- és kivitelezési munkafázis szerinti rendezése és szűrése
 - [x] Védett dokumentum-megnyitás és letöltés
-- [x] Bélyegképes projektkép-galéria és külön dokumentum-előnézet
+- [x] Borcar-mintájú, oldalon belüli képnézegető bélyegképekkel, lapozással és külön dokumentum-előnézettel
 - [x] Opcionális Ajánlat modul tételes kalkulációval
 - [x] Opcionális Ajánlat PDF-generálás és e-mailes kiküldés
 - [x] Opcionális Szerződés modul ajánlatadatok átvételével

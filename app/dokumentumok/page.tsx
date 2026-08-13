@@ -60,6 +60,7 @@ function isImageMaterial(item: ProjectMaterial) {
 
 function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
   const [url, setUrl] = useState('');
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     if (!item.storagePath) return undefined;
     let active = true;
@@ -68,7 +69,7 @@ function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
       objectUrl = value;
       if (active) setUrl(value);
       else URL.revokeObjectURL(value);
-    }).catch(() => undefined);
+    }).catch(() => { if (active) setFailed(true); });
     return () => {
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -77,7 +78,7 @@ function MaterialThumbnail({ item }: { item: ProjectMaterial }) {
 
   return url
     ? <Image src={url} alt={item.title} fill unoptimized sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw" className="object-cover transition duration-200 group-hover:scale-105" />
-    : <div className="flex h-full items-center justify-center bg-slate-100 text-3xl text-slate-400" aria-label="Kép betöltése">▧</div>;
+    : <div className="flex h-full items-center justify-center bg-slate-100 px-3 text-center text-xs font-medium text-slate-500">{failed ? 'Az előnézet nem tölthető be' : 'Kép betöltése…'}</div>;
 }
 
 export default function ProjectDocumentsPage() {
@@ -93,6 +94,8 @@ export default function ProjectDocumentsPage() {
   const [documentTitle, setDocumentTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [viewerPreview, setViewerPreview] = useState<{ storagePath: string; url: string; failed: boolean } | null>(null);
 
   useEffect(() => subscribeToCompanyProjects('', (value) => {
     setProjects(value);
@@ -184,6 +187,33 @@ export default function ProjectDocumentsPage() {
   const visibleItems = materials.filter((item) => filter === 'all' || item.moduleKey === filter);
   const visibleImages = visibleItems.filter(isImageMaterial);
   const visibleDocuments = visibleItems.filter((item) => !isImageMaterial(item));
+  const viewerItem = viewerIndex === null ? null : visibleImages[viewerIndex] ?? null;
+  const activeViewerPreview = viewerPreview?.storagePath === viewerItem?.storagePath ? viewerPreview : null;
+
+  useEffect(() => {
+    if (!viewerItem?.storagePath) return undefined;
+    let active = true;
+    let objectUrl = '';
+    const storagePath = viewerItem.storagePath;
+    void getProtectedStoragePreview(viewerItem.storagePath).then((value) => {
+      objectUrl = value;
+      if (active) setViewerPreview({ storagePath, url: value, failed: false });
+      else URL.revokeObjectURL(value);
+    }).catch(() => { if (active) setViewerPreview({ storagePath, url: '', failed: true }); });
+    return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [viewerItem?.storagePath]);
+
+  useEffect(() => {
+    if (viewerIndex === null) return undefined;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setViewerIndex(null);
+      if (event.key === 'ArrowLeft') setViewerIndex((current) => current === null ? null : (current === 0 ? visibleImages.length - 1 : current - 1));
+      if (event.key === 'ArrowRight') setViewerIndex((current) => current === null ? null : (current === visibleImages.length - 1 ? 0 : current + 1));
+    }
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => { document.body.style.overflow = ''; window.removeEventListener('keydown', onKeyDown); };
+  }, [viewerIndex, visibleImages.length]);
 
   async function run(action: () => Promise<void>) {
     setSaving(true); setError('');
@@ -241,9 +271,9 @@ export default function ProjectDocumentsPage() {
         {visibleImages.length > 0 && <div className="mt-5">
           <div className="mb-3 flex items-center justify-between"><h3 className="font-bold text-slate-800">Képgaléria</h3><span className="text-xs font-semibold text-slate-500">{visibleImages.length} kép</span></div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {visibleImages.map((item) => <article key={item.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <button type="button" disabled={saving} onClick={() => void run(() => openMaterial(item))} className="group relative block aspect-[4/3] w-full overflow-hidden bg-slate-100 text-left disabled:opacity-50"><MaterialThumbnail item={item} /></button>
-              <div className="p-3"><p className="truncate text-sm font-semibold text-slate-800">{item.title}</p><p className="mt-1 truncate text-xs text-slate-500">{scopeLabel(item.moduleKey)} · {readableDate(item.createdAt)}</p><div className="mt-3 flex gap-3"><button disabled={saving} onClick={() => void run(() => openMaterial(item))} className="text-xs font-bold text-sky-700 disabled:opacity-40">Megnézés</button><button disabled={saving} onClick={() => void run(() => downloadMaterial(item))} className="text-xs font-bold text-slate-600 disabled:opacity-40">Letöltés</button>{item.kind === 'attachment' && item.attachment && <button disabled={saving} onClick={() => { if (window.confirm('Biztosan törlöd ezt a projektanyagot?')) void run(() => deleteProjectAttachment(projectId, item.attachment!)); }} className="ml-auto text-xs font-bold text-rose-700 disabled:opacity-40">Törlés</button>}</div></div>
+            {visibleImages.map((item, index) => <article key={item.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <button type="button" disabled={saving} onClick={() => setViewerIndex(index)} className="group relative block aspect-[4/3] w-full overflow-hidden bg-slate-100 text-left disabled:opacity-50"><MaterialThumbnail item={item} /></button>
+              <div className="p-3"><p className="truncate text-sm font-semibold text-slate-800">{item.title}</p><p className="mt-1 truncate text-xs text-slate-500">{scopeLabel(item.moduleKey)} · {readableDate(item.createdAt)}</p><div className="mt-3 flex gap-3"><button disabled={saving} onClick={() => setViewerIndex(index)} className="text-xs font-bold text-sky-700 disabled:opacity-40">Megnézés</button><button disabled={saving} onClick={() => void run(() => downloadMaterial(item))} className="text-xs font-bold text-slate-600 disabled:opacity-40">Letöltés</button>{item.kind === 'attachment' && item.attachment && <button disabled={saving} onClick={() => { if (window.confirm('Biztosan törlöd ezt a projektanyagot?')) void run(() => deleteProjectAttachment(projectId, item.attachment!)); }} className="ml-auto text-xs font-bold text-rose-700 disabled:opacity-40">Törlés</button>}</div></div>
             </article>)}
           </div>
         </div>}
@@ -253,5 +283,15 @@ export default function ProjectDocumentsPage() {
         </div>}
       </>}
     </section>
+    {viewerIndex !== null && viewerItem && <div role="dialog" aria-modal="true" aria-label="Projektképek" onClick={() => setViewerIndex(null)} className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-sm sm:p-6">
+      <div onClick={(event) => event.stopPropagation()} className="grid max-h-[88dvh] w-full max-w-5xl grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-3"><div className="min-w-0"><h3 className="truncate font-bold text-slate-900">{viewerItem.title}</h3><p className="text-xs font-semibold text-slate-500">{viewerIndex + 1} / {visibleImages.length}</p></div><button type="button" onClick={() => setViewerIndex(null)} aria-label="Képnézegető bezárása" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-2xl font-bold text-slate-900 hover:bg-slate-200">×</button></header>
+        <div className="relative flex min-h-[260px] items-center justify-center overflow-hidden bg-slate-950 p-3 sm:min-h-[420px] sm:p-5">
+          {activeViewerPreview?.url ? <Image src={activeViewerPreview.url} alt={viewerItem.title} fill unoptimized sizes="90vw" className="object-contain p-3 sm:p-5" /> : <p className="text-sm font-semibold text-slate-300">{activeViewerPreview?.failed ? 'A kép nem tölthető be.' : 'Kép betöltése…'}</p>}
+          {visibleImages.length > 1 && <><button type="button" onClick={() => setViewerIndex(viewerIndex === 0 ? visibleImages.length - 1 : viewerIndex - 1)} aria-label="Előző kép" className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-bold text-slate-950 shadow">‹</button><button type="button" onClick={() => setViewerIndex(viewerIndex === visibleImages.length - 1 ? 0 : viewerIndex + 1)} aria-label="Következő kép" className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-3xl font-bold text-slate-950 shadow">›</button></>}
+        </div>
+        {visibleImages.length > 1 && <div className="flex gap-2 overflow-x-auto border-t border-slate-200 bg-white p-3">{visibleImages.map((item, index) => <button key={`viewer-${item.id}`} type="button" onClick={() => setViewerIndex(index)} aria-label={`${index + 1}. kép`} className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-lg border-2 bg-slate-100 ${index === viewerIndex ? 'border-sky-600' : 'border-transparent opacity-70 hover:opacity-100'}`}><MaterialThumbnail item={item} /></button>)}</div>}
+      </div>
+    </div>}
   </div></main>;
 }
