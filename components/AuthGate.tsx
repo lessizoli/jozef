@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import { usePathname, useRouter } from 'next/navigation';
 import { auth } from '../lib/firebase';
+import { validateCurrentSession } from '@/lib/authService';
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -20,6 +21,26 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!user || publicPath) return undefined;
+    let checking = false;
+    const check = async () => {
+      if (checking) return;
+      checking = true;
+      const valid = await validateCurrentSession();
+      checking = false;
+      if (!valid) {
+        await signOut(auth);
+        router.replace('/login?reason=session-replaced');
+      }
+    };
+    const timer = window.setInterval(() => { void check(); }, 15_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    void check();
+    return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [publicPath, router, user]);
+
+  useEffect(() => {
     if (loading) return;
 
     if (!user && !publicPath) {
@@ -28,7 +49,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     if (user && publicPath) {
-      router.replace('/');
+      let cancelled = false;
+      void validateCurrentSession().then((valid) => { if (valid && !cancelled) router.replace('/'); });
+      return () => { cancelled = true; };
     }
   }, [loading, publicPath, router, user]);
 
@@ -41,7 +64,5 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (!user && !publicPath) return null;
-  if (user && publicPath) return null;
-
   return children;
 }

@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { defineSecret } from 'firebase-functions/params';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import * as nodemailer from 'nodemailer';
+import { assertValidSession } from './exclusiveSession';
 
 const db = getFirestore();
 const SMTP_USER = defineSecret('SMTP_USER');
@@ -11,8 +12,9 @@ const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
 const allowedRoles = ['company_admin', 'project_manager', 'surveyor', 'installer', 'finance'] as const;
 
-async function requireCompanyPermission(uid: string | undefined, permission: 'manageMembers') {
+async function requireCompanyPermission(uid: string | undefined, permission: 'manageMembers', token?: Record<string, unknown>) {
   if (!uid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');
+  await assertValidSession(uid, token);
   const snapshot = await db.doc(`users/${uid}`).get();
   const profile = snapshot.data();
   if (!snapshot.exists || profile?.active === false || !profile?.companyId) {
@@ -34,7 +36,7 @@ function validateRole(role: unknown): asserts role is typeof allowedRoles[number
 }
 
 export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP_HOST] }, async (request) => {
-  const { companyId } = await requireCompanyPermission(request.auth?.uid, 'manageMembers');
+  const { companyId } = await requireCompanyPermission(request.auth?.uid, 'manageMembers', request.auth?.token);
   const fullName = typeof request.data?.fullName === 'string' ? request.data.fullName.trim() : '';
   const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
   const role = request.data?.role;
@@ -64,7 +66,7 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
   const companyName = String(companySnapshot.data()?.name ?? 'Névtelen cég');
   const profileSnapshot = await db.doc(`users/${userRecord.uid}`).get();
   const hasActiveCompany = profileSnapshot.exists && Boolean(profileSnapshot.data()?.companyId);
-  if (!hasActiveCompany) await getAuth().setCustomUserClaims(userRecord.uid, { companyId, role });
+  if (!hasActiveCompany) await getAuth().setCustomUserClaims(userRecord.uid, { ...(userRecord.customClaims ?? {}), companyId, role });
   const batch = db.batch();
   batch.set(db.doc(`users/${userRecord.uid}`), {
     uid: userRecord.uid,
@@ -113,7 +115,7 @@ export const inviteCompanyMember = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP
 
 export const updateCompanyMember = onCall(async (request) => {
   const callerUid = request.auth?.uid;
-  const { companyId } = await requireCompanyPermission(callerUid, 'manageMembers');
+  const { companyId } = await requireCompanyPermission(callerUid, 'manageMembers', request.auth?.token);
   const uid = typeof request.data?.uid === 'string' ? request.data.uid : '';
   const active = request.data?.active;
   const role = request.data?.role;
@@ -129,7 +131,10 @@ export const updateCompanyMember = onCall(async (request) => {
   const profileSnapshot = await db.doc(`users/${uid}`).get();
   const isActiveCompany = profileSnapshot.data()?.companyId === companyId;
   const companyName = String((await db.doc(`companies/${companyId}`).get()).data()?.name ?? 'Névtelen cég');
-  if (isActiveCompany) await getAuth().setCustomUserClaims(uid, { companyId, role });
+  if (isActiveCompany) {
+    const existingClaims = (await getAuth().getUser(uid)).customClaims ?? {};
+    await getAuth().setCustomUserClaims(uid, { ...existingClaims, companyId, role });
+  }
   const batch = db.batch();
   batch.set(db.doc(`users/${uid}`), {
     ...(isActiveCompany ? { role, active } : {}),

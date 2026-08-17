@@ -14,7 +14,9 @@ service cloud.firestore {
     function activeUser() {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && profile().active != false;
+        && profile().active != false
+        && profile().get('activeSessionId', null) != null
+        && request.auth.token.get('sessionId', null) == profile().activeSessionId;
     }
 
     function superAdmin() {

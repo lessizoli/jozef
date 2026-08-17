@@ -92,6 +92,9 @@ Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Stor
 - [x] Egy felhasználói e-mailhez több céges tagság és aktívcég-váltás
 - [x] További vállalkozás biztonságos létrehozása meglévő bejelentkezésből
 - [x] Meglévő Envision-felhasználó meghívása további céghez
+- [x] Felhasználónként egyidejűleg egyetlen aktív eszköz/munkamenet
+- [x] Korábbi eszköz tokenjének visszavonása és automatikus kijelentkeztetése új belépéskor
+- [x] Munkamenet-azonosító ellenőrzése Firestore-, Storage- és callable műveleteknél
 - [x] Projektadatok módosítása és projekt lezárása
 - [x] Menthető helyszíni felmérési űrlap közvetlenül a Felmérés gyorsmenüből
 - [x] Felmérési képek feltöltése galériából vagy közvetlenül mobilkamerával

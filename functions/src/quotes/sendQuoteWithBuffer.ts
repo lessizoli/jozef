@@ -3,12 +3,14 @@ import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
 import { createQuotePdf } from './quotePdf';
 import { getQuoteContext, quoteFilename } from './quoteModel';
+import { assertValidSession } from '../auth/exclusiveSession';
 
 const SMTP_USER = defineSecret('SMTP_USER');
 const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
 
 export const sendQuoteWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP_HOST] }, async (request) => {
+  await assertValidSession(request.auth?.uid, request.auth?.token);
   const context = await getQuoteContext(request.auth?.uid, request.data?.projectId);
   const email = context.project.client?.email;
   if (typeof email !== 'string' || !email.trim()) {

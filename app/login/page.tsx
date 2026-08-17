@@ -1,8 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { loginWithEmail } from '@/lib/authService';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 
@@ -19,7 +18,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await loginWithEmail(email.trim(), password);
     } catch (loginError) {
       const code = typeof loginError === 'object' && loginError && 'code' in loginError
         ? String(loginError.code)

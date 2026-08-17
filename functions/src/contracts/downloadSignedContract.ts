@@ -1,10 +1,12 @@
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { assertValidSession } from '../auth/exclusiveSession';
 
 const db = getFirestore();
 
 export const downloadSignedContract = onCall(async (request) => {
+  await assertValidSession(request.auth?.uid, request.auth?.token);
   const callerUid = request.auth?.uid;
   const projectId = request.data?.projectId;
   if (!callerUid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');

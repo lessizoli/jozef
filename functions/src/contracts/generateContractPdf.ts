@@ -1,8 +1,10 @@
 import { onCall } from 'firebase-functions/v2/https';
 import { getContractContext, contractFilename } from './contractModel';
 import { createContractPdf } from './contractPdf';
+import { assertValidSession } from '../auth/exclusiveSession';
 
 export const generateContractPdf = onCall(async (request) => {
+  await assertValidSession(request.auth?.uid, request.auth?.token);
   const context = await getContractContext(request.auth?.uid, request.data?.projectId);
   const pdf = await createContractPdf(context);
   return {

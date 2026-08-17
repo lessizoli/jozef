@@ -1,6 +1,7 @@
 import { auth, db } from './firebase';
 import { 
   signInWithEmailAndPassword, 
+  signInWithCustomToken,
   signOut,
 } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -31,10 +32,29 @@ export async function registerNewCompany(data: RegisterCompanyInput) {
 
 // 2. Bejelentkezés
 export async function loginWithEmail(email: string, password: string) {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
-  // Kényszerítjük a tokent, hogy azonnal frissüljön a Custom Claims-szel
-  await userCredential.user.getIdToken(true);
-  return userCredential.user;
+  await signInWithEmailAndPassword(auth, email, password);
+  try {
+    const functionsInstance = getFunctions(undefined, 'europe-west1');
+    const startSession = httpsCallable<Record<string, never>, { customToken: string }>(functionsInstance, 'startExclusiveSession');
+    const result = await startSession({});
+    const exclusiveCredential = await signInWithCustomToken(auth, result.data.customToken);
+    await exclusiveCredential.user.getIdToken(true);
+    return exclusiveCredential.user;
+  } catch (error) {
+    await signOut(auth);
+    throw error;
+  }
+}
+
+export async function validateCurrentSession() {
+  if (!auth.currentUser) return false;
+  const functionsInstance = getFunctions(undefined, 'europe-west1');
+  const validate = httpsCallable<Record<string, never>, { valid: boolean }>(functionsInstance, 'validateExclusiveSession');
+  try { return (await validate({})).data.valid; }
+  catch (error) {
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+    return !['functions/unauthenticated', 'functions/permission-denied'].includes(code);
+  }
 }
 
 // 3. Kijelentkezés

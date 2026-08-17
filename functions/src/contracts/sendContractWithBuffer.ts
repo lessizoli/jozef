@@ -3,12 +3,14 @@ import { defineSecret } from 'firebase-functions/params';
 import * as nodemailer from 'nodemailer';
 import { getContractContext, contractFilename } from './contractModel';
 import { createContractPdf } from './contractPdf';
+import { assertValidSession } from '../auth/exclusiveSession';
 
 const SMTP_USER = defineSecret('SMTP_USER');
 const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
 
 export const sendContractWithBuffer = onCall({ secrets: [SMTP_USER, SMTP_PASS, SMTP_HOST] }, async (request) => {
+  await assertValidSession(request.auth?.uid, request.auth?.token);
   const context = await getContractContext(request.auth?.uid, request.data?.projectId);
   const email = context.project.client?.email;
   if (typeof email !== 'string' || !email.trim()) {

@@ -1,6 +1,7 @@
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { assertValidSession } from './exclusiveSession';
 
 const db = getFirestore();
 const defaultRoles = {
@@ -14,6 +15,7 @@ const defaultRoles = {
 export const createCompanyForCurrentUser = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');
+  await assertValidSession(uid, request.auth?.token);
   const companyName = typeof request.data?.companyName === 'string' ? request.data.companyName.trim() : '';
   if (!companyName) throw new HttpsError('invalid-argument', 'A vállalkozás neve kötelező.');
   const user = await getAuth().getUser(uid);
@@ -37,13 +39,15 @@ export const createCompanyForCurrentUser = onCall(async (request) => {
     memberships,
   }, { merge: true });
   await batch.commit();
-  await getAuth().setCustomUserClaims(uid, { companyId: companyRef.id, role: 'company_admin' });
+  const existingClaims = (await getAuth().getUser(uid)).customClaims ?? {};
+  await getAuth().setCustomUserClaims(uid, { ...existingClaims, companyId: companyRef.id, role: 'company_admin' });
   return { success: true, companyId: companyRef.id };
 });
 
 export const switchActiveCompany = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');
+  await assertValidSession(uid, request.auth?.token);
   const companyId = typeof request.data?.companyId === 'string' ? request.data.companyId : '';
   if (!companyId) throw new HttpsError('invalid-argument', 'Hiányzó cégazonosító.');
   const [memberSnapshot, companySnapshot] = await Promise.all([
@@ -58,6 +62,7 @@ export const switchActiveCompany = onCall(async (request) => {
     companyId, role, active: true, updatedAt: new Date(),
     memberships: { [companyId]: { companyId, companyName, role, active: true } },
   }, { merge: true });
-  await getAuth().setCustomUserClaims(uid, { companyId, role });
+  const existingClaims = (await getAuth().getUser(uid)).customClaims ?? {};
+  await getAuth().setCustomUserClaims(uid, { ...existingClaims, companyId, role });
   return { success: true };
 });

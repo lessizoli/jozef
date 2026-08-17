@@ -14,6 +14,7 @@ import { inviteCompanyMember, updateCompanyMember } from './auth/manageCompanyMe
 import { createCompanyForCurrentUser, switchActiveCompany } from './auth/companyMemberships';
 import { cacheDailyExchangeRates, getCurrencyPreview } from './localization/exchangeRates';
 import { translateProjectText } from './localization/translateText';
+import { startExclusiveSession, validateExclusiveSession } from './auth/exclusiveSession';
 
 // Figyelj rá, hogy mind a kettő itt legyen bent az exportban!
 export { 
@@ -30,4 +31,6 @@ export {
   getCurrencyPreview,
   cacheDailyExchangeRates,
   translateProjectText,
+  startExclusiveSession,
+  validateExclusiveSession,
 };
