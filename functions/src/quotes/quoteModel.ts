@@ -95,6 +95,12 @@ export async function getQuoteContext(callerUid: string | undefined, projectId: 
   if (!userSnap.exists || !user?.companyId || user.active === false) {
     throw new HttpsError('permission-denied', 'Nincs jogosultságod ehhez a projekthez.');
   }
+  const permissionSnap = await db.doc(`companies/${user.companyId}/settings/permissions`).get();
+  const configured = permissionSnap.data()?.roles?.[String(user.role)]?.manageQuote;
+  const defaultAllowed = ['company_admin', 'admin', 'project_manager', 'office', 'superadmin'].includes(String(user.role));
+  if ((configured ?? defaultAllowed) !== true) {
+    throw new HttpsError('permission-denied', 'Nincs jogosultságod az Ajánlat modul kezeléséhez.');
+  }
 
   const projectRef = db.doc(`companies/${user.companyId}/projects/${projectId}`);
   const [projectSnap, companySnap] = await Promise.all([

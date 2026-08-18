@@ -10,7 +10,7 @@ const db = getFirestore();
 const SMTP_USER = defineSecret('SMTP_USER');
 const SMTP_PASS = defineSecret('SMTP_PASS');
 const SMTP_HOST = defineSecret('SMTP_HOST');
-const allowedRoles = ['company_admin', 'project_manager', 'surveyor', 'installer', 'finance'] as const;
+const allowedRoles = ['company_admin', 'project_manager', 'office', 'surveyor', 'installer', 'finance'] as const;
 
 async function requireCompanyPermission(uid: string | undefined, permission: 'manageMembers', token?: Record<string, unknown>) {
   if (!uid) throw new HttpsError('unauthenticated', 'Bejelentkezés szükséges.');

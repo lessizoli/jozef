@@ -4,7 +4,7 @@ import { getProjectModuleDisplayStatus, isProjectDelayed, isProjectFinanceOverdu
 import { moduleKeys, moduleLabels } from './dashboardConfig';
 import { useI18n } from '@/lib/i18n';
 
-type Props = { projects: Project[]; onCreate: () => void; onOpenModule: (project: Project, moduleKey: ModuleKey) => void; onEditProject: (project: Project) => void; onCloseProject: (project: Project) => void };
+type Props = { projects: Project[]; onCreate: () => void; onOpenModule: (project: Project, moduleKey: ModuleKey) => void; onEditProject: (project: Project) => void; onCloseProject: (project: Project) => void; canCreate: boolean; canEdit: boolean; canManageDocuments: boolean; moduleAccess: Record<ModuleKey, boolean> };
 const completedStatuses = ['Kész', 'Elfogadva', 'Aláírva', 'Befejezve', 'Fizetve'];
 const groups: Array<{ key: 'delayed' | 'closed' | ModuleKey; label: string; note: string }> = [
   { key: 'delayed', label: 'Csúszásban', note: 'Minden késésben lévő projekt, munkaszakasztól függetlenül' },
@@ -24,7 +24,7 @@ function currentStage(project: Project): ModuleKey {
     ?? 'survey';
 }
 
-function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProject }: { project: Project; stage: ModuleKey; onOpenModule: Props['onOpenModule']; onEditProject: Props['onEditProject']; onCloseProject: Props['onCloseProject'] }) {
+function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProject, moduleAccess = Object.fromEntries(moduleKeys.map((key) => [key, true])) as Record<ModuleKey, boolean> }: { project: Project; stage: ModuleKey; onOpenModule: Props['onOpenModule']; onEditProject: Props['onEditProject']; onCloseProject: Props['onCloseProject']; moduleAccess?: Record<ModuleKey, boolean> }) {
   const { t } = useI18n();
   const [quickMenuOpen, setQuickMenuOpen] = useState(false);
   const projectModule = project.modules[stage];
@@ -42,7 +42,7 @@ function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProjec
     </div>
     {quickMenuOpen && <div className="border-t border-sky-100 bg-sky-50/70 px-5 py-4">
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {!project.closed && moduleKeys.map((key) => <button type="button" key={key} disabled={!project.modules[key].enabled} onClick={() => onOpenModule(project, key)} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 shadow-sm hover:border-sky-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"><span className="font-semibold">{t(moduleLabels[key])}</span><span className="ml-2 truncate">{t(getProjectModuleDisplayStatus(project, key))}</span></button>)}
+        {!project.closed && moduleKeys.map((key) => <button type="button" key={key} disabled={!project.modules[key].enabled || !moduleAccess[key]} onClick={() => onOpenModule(project, key)} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-xs text-slate-600 shadow-sm hover:border-sky-300 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-300"><span className="font-semibold">{t(moduleLabels[key])}</span><span className="ml-2 truncate">{t(getProjectModuleDisplayStatus(project, key))}</span></button>)}
       </div>
       <div className="mt-3 flex flex-wrap gap-2 border-t border-sky-100 pt-3">
         <button type="button" onClick={() => onEditProject(project)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-sky-700 shadow-sm hover:bg-sky-100">{t(project.closed ? 'Projektadatok megtekintése' : 'Projektadatok módosítása')}</button>
@@ -53,7 +53,7 @@ function ProjectRow({ project, stage, onOpenModule, onEditProject, onCloseProjec
   </div>;
 }
 
-export default function ProjectList({ projects, onCreate, onOpenModule, onEditProject, onCloseProject }: Props) {
+export default function ProjectList({ projects, onCreate, onOpenModule, onEditProject, onCloseProject, canCreate }: Props) {
   const { t } = useI18n();
   const [openGroups, setOpenGroups] = useState<Set<string> | null>(null);
   const grouped = useMemo(() => groups.map((group) => ({ ...group, projects: projects.filter((project) => {
@@ -64,6 +64,6 @@ export default function ProjectList({ projects, onCreate, onOpenModule, onEditPr
   }) })), [projects]);
   const hasDelayedProjects = (grouped.find((group) => group.key === 'delayed')?.projects.length ?? 0) > 0;
   function toggle(key: string) { setOpenGroups((current) => { const next = new Set(current ?? (hasDelayedProjects ? ['delayed'] : [])); if (next.has(key)) next.delete(key); else next.add(key); return next; }); }
-  if (projects.length === 0) return <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"><p className="font-semibold text-slate-600">{t('Még nincs projekt ebben a cégben.')}</p><button type="button" onClick={onCreate} className="mt-5 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-500">{t('Első érdeklődés rögzítése')}</button></section>;
+  if (projects.length === 0) return <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center"><p className="font-semibold text-slate-600">{t('Még nincs projekt ebben a cégben.')}</p>{canCreate && <button type="button" onClick={onCreate} className="mt-5 rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-500">{t('Első érdeklődés rögzítése')}</button>}</section>;
   return <section className="space-y-3">{grouped.map((group) => { const isDelayed = group.key === 'delayed'; const open = openGroups ? openGroups.has(group.key) : isDelayed && group.projects.length > 0; const optional = ['quote', 'contract', 'finance'].includes(group.key); return <article key={group.key} className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${isDelayed ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'} ${optional ? 'opacity-90' : ''}`}><button type="button" onClick={() => toggle(group.key)} aria-expanded={open} className={`flex w-full items-center gap-3 px-5 py-4 text-left ${isDelayed ? 'hover:bg-rose-50' : 'hover:bg-slate-50'}`}><span className={`text-xs text-slate-400 transition ${open ? 'rotate-90' : ''}`}>▶</span><span className="text-sm font-bold text-slate-800">{t(group.label)}</span><span className="hidden text-xs text-slate-400 md:inline">{t(group.note)}</span><span className={`ml-auto rounded-full px-2.5 py-1 text-xs font-bold ${isDelayed ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{group.projects.length}</span></button>{open && <div>{group.projects.length === 0 ? <p className="border-t border-slate-200 px-5 py-5 text-xs text-slate-400">{t('Jelenleg nincs projekt ebben a csoportban.')}</p> : group.projects.map((project) => <ProjectRow key={project.id} project={project} stage={currentStage(project)} onOpenModule={onOpenModule} onEditProject={onEditProject} onCloseProject={onCloseProject}/>)}</div>}</article>; })}</section>;
 }

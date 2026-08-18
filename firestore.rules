@@ -35,8 +35,11 @@ service cloud.firestore {
 
     function defaultPermission(permission) {
       return profile().role == 'project_manager'
-        && permission in ['createProjects', 'editProjects', 'manageDocuments', 'manageFinance', 'manageTeams']
-        || profile().role in ['surveyor', 'installer'] && permission == 'manageDocuments'
+        && permission in ['createProjects', 'editProjects', 'manageSurvey', 'manageQuote', 'manageContract', 'manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments', 'manageFinance', 'manageTeams']
+        || profile().role == 'office'
+          && permission in ['createProjects', 'editProjects', 'manageSurvey', 'manageQuote', 'manageContract', 'manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments']
+        || profile().role == 'surveyor' && permission in ['manageSurvey', 'manageCalendar', 'manageDocuments']
+        || profile().role == 'installer' && permission in ['manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments']
         || profile().role == 'finance' && permission == 'manageFinance';
     }
 
@@ -61,6 +64,23 @@ service cloud.firestore {
         && request.resource.data.modules.completion == resource.data.modules.completion;
     }
 
+    function moduleOnlyProjectUpdate(companyId, permission, dataField) {
+      return hasPermission(companyId, permission)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          dataField, 'modules', 'status', 'lastAction', 'updatedAt', 'closed', 'closedAt', 'teamId'
+        ]);
+    }
+
+    function legacyPermission(module) {
+      return module == 'events' ? 'manageCalendar'
+        : module == 'surveys' ? 'manageSurvey'
+        : module in ['constructions', 'executions'] ? 'manageConstruction'
+        : module == 'quotes' ? 'manageQuote'
+        : module == 'contracts' ? 'manageContract'
+        : module == 'finances' ? 'manageFinance'
+        : 'manageDocuments';
+    }
+
     match /users/{userId} {
       allow read: if activeUser()
         && (superAdmin() || request.auth.uid == userId);
@@ -76,19 +96,24 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow read: if belongsTo(companyId);
-      allow create, update, delete: if companyAdmin(companyId);
+      allow create, delete: if companyAdmin(companyId);
+      allow update: if hasPermission(companyId, 'manageCompany');
 
       match /projects/{projectId} {
         allow read: if belongsTo(companyId);
         allow create: if hasPermission(companyId, 'createProjects');
         allow update: if hasPermission(companyId, 'editProjects')
+          || moduleOnlyProjectUpdate(companyId, 'manageSurvey', 'surveyData')
+          || moduleOnlyProjectUpdate(companyId, 'manageQuote', 'quoteData')
+          || moduleOnlyProjectUpdate(companyId, 'manageContract', 'contractData')
+          || moduleOnlyProjectUpdate(companyId, 'manageConstruction', 'constructionData')
+          || moduleOnlyProjectUpdate(companyId, 'manageCompletion', 'completionData')
           || financeOnlyProjectUpdate(companyId);
         allow delete: if companyAdmin(companyId);
       }
 
       match /{module}/{documentId} {
-        allow read, create, update, delete: if belongsTo(companyId)
-          && module in [
+        allow read: if belongsTo(companyId) && module in [
             'events',
             'surveys',
             'constructions',
@@ -98,6 +123,8 @@ service cloud.firestore {
             'finances',
             'files'
           ];
+        allow create, update, delete: if module in ['events', 'surveys', 'constructions', 'executions', 'quotes', 'contracts', 'finances', 'files']
+          && hasPermission(companyId, legacyPermission(module));
       }
 
       match /projects/{projectId}/attachments/{attachmentId} {
@@ -113,7 +140,7 @@ service cloud.firestore {
 
       match /projects/{projectId}/constructionEntries/{entryId} {
         allow read: if belongsTo(companyId);
-        allow create: if belongsTo(companyId)
+        allow create: if hasPermission(companyId, 'manageConstruction')
           && request.resource.data.type in ['log', 'photo']
           && request.resource.data.createdBy == request.auth.uid;
         allow update, delete: if false;
@@ -126,7 +153,7 @@ service cloud.firestore {
         allow create, update, delete: if (
           adminSection == 'teams' && hasPermission(companyId, 'manageTeams')
           || adminSection in ['members', 'invites'] && hasPermission(companyId, 'manageMembers')
-          || adminSection == 'settings' && companyAdmin(companyId)
+          || adminSection == 'settings' && hasPermission(companyId, 'manageCompany')
         );
       }
 

@@ -1,6 +1,6 @@
 # Envision CRM – projektállapot és mérföldkövek
 
-Utolsó frissítés: 2026. augusztus 13.
+Utolsó frissítés: 2026. augusztus 18.
 
 Ez a fájl az Envision CRM fejlesztésének központi állapotlapja. Új fejlesztés megkezdése előtt ezt kell elolvasni, befejezés után pedig frissíteni kell.
 
@@ -56,6 +56,11 @@ Az Ajánlat, Szerződés, Pénzügy, Raktár és más üzleti területek külön
 Alap: Next.js 16, React 19, TypeScript, Firebase Authentication, Firestore, Storage és Functions.
 
 ### Elkészült
+
+- [x] Cégen belüli szerepkörök: Cégadminisztrátor, Projektvezető, Iroda, Felmérő, Kivitelező és Pénzügy
+- [x] Modulonként állítható jogosultságok a felméréshez, ajánlathoz, szerződéshez, kivitelezéshez, befejezéshez, naptárhoz, dokumentumokhoz és pénzügyhöz
+- [x] Az Iroda és a Projektvezető teljes operatív projektfolyamat-kezelése
+- [x] Felületi és Firebase-oldali jogosultság-ellenőrzés, beleértve az Ajánlat és Szerződés szerverfunkcióit
 
 - [x] Bővíthető HU/DE nyelvi rendszer felhasználói nyelvmentéssel és fejléc-/belépési nyelvválasztóval
 - [x] Céges alapértelmezett és projektenkénti kommunikációs nyelv, a pénznemtől külön kezelve

@@ -28,28 +28,37 @@ service firebase.storage {
         && profile().role in ['superadmin', 'company_admin', 'admin'];
     }
 
-    function canManageDocuments(companyId) {
+    function defaultPermission(permission) {
+      return profile().role == 'project_manager'
+        && permission in ['manageSurvey', 'manageQuote', 'manageContract', 'manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments', 'manageFinance']
+        || profile().role == 'office'
+          && permission in ['manageSurvey', 'manageQuote', 'manageContract', 'manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments']
+        || profile().role == 'surveyor' && permission in ['manageSurvey', 'manageCalendar', 'manageDocuments']
+        || profile().role == 'installer' && permission in ['manageConstruction', 'manageCompletion', 'manageCalendar', 'manageDocuments']
+        || profile().role == 'finance' && permission == 'manageFinance';
+    }
+
+    function hasPermission(companyId, permission) {
       return companyAdmin(companyId)
         || belongsTo(companyId) && (
           firestore.exists(/databases/(default)/documents/companies/$(companyId)/settings/permissions)
-            ? firestore.get(/databases/(default)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role].manageDocuments == true
-            : profile().role in ['project_manager', 'surveyor', 'installer']
+            ? firestore.get(/databases/(default)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role].get(permission, defaultPermission(permission)) == true
+            : defaultPermission(permission)
         );
     }
 
+    function canManageDocuments(companyId) {
+      return hasPermission(companyId, 'manageDocuments');
+    }
+
     function canManageFinance(companyId) {
-      return companyAdmin(companyId)
-        || belongsTo(companyId) && (
-          firestore.exists(/databases/(default)/documents/companies/$(companyId)/settings/permissions)
-            ? firestore.get(/databases/(default)/documents/companies/$(companyId)/settings/permissions).data.roles[profile().role].get('manageFinance', profile().role in ['project_manager', 'finance']) == true
-            : profile().role in ['project_manager', 'finance']
-        );
+      return hasPermission(companyId, 'manageFinance');
     }
 
     match /companies/{companyId}/projects/{projectId}/images/{fileName} {
       allow read: if belongsTo(companyId);
 
-      allow create: if canManageDocuments(companyId)
+      allow create: if hasPermission(companyId, 'manageContract')
         && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
 
@@ -73,7 +82,7 @@ service firebase.storage {
 
     match /companies/{companyId}/projects/{projectId}/construction/{fileName} {
       allow read: if belongsTo(companyId);
-      allow create: if belongsTo(companyId)
+      allow create: if hasPermission(companyId, 'manageConstruction')
         && request.resource.size < 15 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
       allow update, delete: if false;

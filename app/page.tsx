@@ -58,7 +58,7 @@ import {
   updateCompanyMember,
   updateTeam,
 } from '@/lib/teamService';
-import { defaultPermissionMatrix, savePermissionMatrix, subscribeToPermissionMatrix, type PermissionMatrix } from '@/lib/permissionService';
+import { defaultPermissionMatrix, modulePermissionKeys, savePermissionMatrix, subscribeToPermissionMatrix, type PermissionMatrix } from '@/lib/permissionService';
 import { useI18n } from '@/lib/i18n';
 import { subscribeToCompanyDetails } from '@/lib/companyService';
 
@@ -225,6 +225,7 @@ export default function Dashboard() {
     ...teams.filter((team) => team.active).map((team) => ({ id: team.id, type: 'team' as const, label: team.name })),
   ], [members, teams]);
   const rolePermissions = userRole in permissionMatrix ? permissionMatrix[userRole as MemberRole] : defaultPermissionMatrix.company_admin;
+  const moduleAccess = Object.fromEntries(moduleKeys.map((key) => [key, rolePermissions[modulePermissionKeys[key]]])) as Record<ModuleKey, boolean>;
 
   const monthTitle = calendarMonth.toLocaleDateString(locale, { year: 'numeric', month: 'long' });
   const calendarDraftProject = calendarDraft
@@ -246,6 +247,7 @@ export default function Dashboard() {
 
   async function createProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!rolePermissions.createProjects) return;
     if (!inquiryForm.title.trim() || !inquiryForm.clientName.trim()) return;
     const submitted = inquiryForm;
     setInquiryForm(emptyInquiry);
@@ -263,6 +265,7 @@ export default function Dashboard() {
   }
 
   function openCreateProject() {
+    if (!rolePermissions.createProjects) return;
     setInquiryForm((current) => current.title || current.clientName ? current : { ...current, communicationLanguage: companyDefaultLanguage });
     setShowCreate(true);
   }
@@ -360,7 +363,7 @@ export default function Dashboard() {
   }
 
   function openModule(project: Project, key: ModuleKey) {
-    if (project.closed || !project.modules[key].enabled) return;
+    if (project.closed || !project.modules[key].enabled || !moduleAccess[key]) return;
     setActionError('');
     setDrawerIntent(key === 'survey' ? 'survey' : key === 'quote' ? 'quote' : key === 'contract' ? 'contract' : key === 'construction' ? 'construction' : key === 'completion' ? 'completion' : key === 'finance' ? 'finance' : 'module');
     setSelectedModule(key);
@@ -396,6 +399,7 @@ export default function Dashboard() {
   }, [projectModuleDeepLink, projects]);
 
   function openProjectDetails(project: Project) {
+    if (!rolePermissions.editProjects) return;
     setActionError('');
     setDrawerIntent('details');
     loadDetailsDraft(project);
@@ -406,6 +410,7 @@ export default function Dashboard() {
   }
 
   function requestProjectClose(project: Project) {
+    if (!rolePermissions.editProjects) return;
     setActionError('');
     setDrawerIntent('close');
     loadDetailsDraft(project);
@@ -416,7 +421,7 @@ export default function Dashboard() {
   }
 
   function changeSelectedModule(key: ModuleKey) {
-    if (!selectedProject) return;
+    if (!selectedProject || !moduleAccess[key]) return;
     setSelectedModule(key);
     loadScheduleDraft(selectedProject, key);
   }
@@ -528,6 +533,7 @@ export default function Dashboard() {
   }
 
   function openCalendarDraft(date: string) {
+    if (!rolePermissions.manageCalendar) return;
     const firstProject = activeProjects[0];
     const firstModule = firstProject
       ? moduleKeys.find((key) => firstProject.modules[key].enabled) ?? 'survey'
@@ -553,6 +559,7 @@ export default function Dashboard() {
 
   async function saveCalendarDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!rolePermissions.manageCalendar) return;
     if (!calendarDraft?.projectId || !calendarDraft.date || !calendarDraft.time) return;
     const project = projects.find((item) => item.id === calendarDraft.projectId);
     if (!project || project.closed || !project.modules[calendarDraft.moduleKey].enabled) return;
@@ -604,6 +611,7 @@ export default function Dashboard() {
         onViewChange={setView}
         onCreate={openCreateProject}
         onSignOut={() => void signOut(auth)}
+        canCreateProject={rolePermissions.createProjects}
       />
 
       <div className="mx-auto max-w-[1500px] space-y-7 px-5 py-7">
@@ -626,13 +634,17 @@ export default function Dashboard() {
             onOpenModule={openModule}
             onEditProject={openProjectDetails}
             onCloseProject={requestProjectClose}
+            canCreate={rolePermissions.createProjects}
+            canEdit={rolePermissions.editProjects}
+            canManageDocuments={rolePermissions.manageDocuments}
+            moduleAccess={moduleAccess}
           /></>
         ) : view === 'calendar' ? (
           <CalendarView
             monthTitle={monthTitle}
             days={calendarDays}
             events={calendarEvents}
-            hasActiveProject={activeProjects.length > 0}
+            hasActiveProject={activeProjects.length > 0 && rolePermissions.manageCalendar}
             onAdd={openCalendarDraft}
             onMoveMonth={moveMonth}
             onToday={() => setCalendarMonth(new Date())}
@@ -646,6 +658,7 @@ export default function Dashboard() {
             canManageMembers={canManageTeam || rolePermissions.manageMembers}
             canManageTeams={canManageTeam || rolePermissions.manageTeams}
             canEditPermissions={canManageTeam}
+            canEditCompany={canManageTeam || rolePermissions.manageCompany}
             saving={saving}
             onInvite={handleInvite}
             onMemberUpdate={handleMemberUpdate}

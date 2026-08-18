@@ -67,11 +67,12 @@ export const registerTenant = onCall(async (request) => {
 
     await companyRef.collection('settings').doc('permissions').set({
       roles: {
-        company_admin: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: true },
-        project_manager: { createProjects: true, editProjects: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: false },
-        surveyor: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
-        installer: { createProjects: false, editProjects: false, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false },
-        finance: { createProjects: false, editProjects: false, manageDocuments: false, manageFinance: true, manageTeams: false, manageMembers: false },
+        company_admin: { createProjects: true, editProjects: true, manageSurvey: true, manageQuote: true, manageContract: true, manageConstruction: true, manageCompletion: true, manageCalendar: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: true, manageCompany: true },
+        project_manager: { createProjects: true, editProjects: true, manageSurvey: true, manageQuote: true, manageContract: true, manageConstruction: true, manageCompletion: true, manageCalendar: true, manageDocuments: true, manageFinance: true, manageTeams: true, manageMembers: false, manageCompany: false },
+        office: { createProjects: true, editProjects: true, manageSurvey: true, manageQuote: true, manageContract: true, manageConstruction: true, manageCompletion: true, manageCalendar: true, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false, manageCompany: false },
+        surveyor: { createProjects: false, editProjects: false, manageSurvey: true, manageQuote: false, manageContract: false, manageConstruction: false, manageCompletion: false, manageCalendar: true, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false, manageCompany: false },
+        installer: { createProjects: false, editProjects: false, manageSurvey: false, manageQuote: false, manageContract: false, manageConstruction: true, manageCompletion: true, manageCalendar: true, manageDocuments: true, manageFinance: false, manageTeams: false, manageMembers: false, manageCompany: false },
+        finance: { createProjects: false, editProjects: false, manageSurvey: false, manageQuote: false, manageContract: false, manageConstruction: false, manageCompletion: false, manageCalendar: false, manageDocuments: false, manageFinance: true, manageTeams: false, manageMembers: false, manageCompany: false },
       },
       createdAt: new Date(),
     });

@@ -13,6 +13,7 @@ type Props = {
   canManageMembers: boolean;
   canManageTeams: boolean;
   canEditPermissions: boolean;
+  canEditCompany: boolean;
   saving: boolean;
   onInvite: (input: { fullName: string; email: string; role: MemberRole }) => Promise<void>;
   onMemberUpdate: (member: CompanyMember, role: MemberRole, active: boolean) => Promise<void>;
@@ -26,7 +27,7 @@ type Props = {
 
 const roles = Object.keys(roleLabels) as MemberRole[];
 
-export default function TeamManagement({ members, teams, invites, canManageMembers, canManageTeams, canEditPermissions, saving, onInvite, onMemberUpdate, onTeamCreate, onTeamUpdate, onTeamDelete, permissionMatrix, onPermissionChange, onPermissionSave }: Props) {
+export default function TeamManagement({ members, teams, invites, canManageMembers, canManageTeams, canEditPermissions, canEditCompany, saving, onInvite, onMemberUpdate, onTeamCreate, onTeamUpdate, onTeamDelete, permissionMatrix, onPermissionChange, onPermissionSave }: Props) {
   const { t } = useI18n();
   const [invite, setInvite] = useState<{ fullName: string; email: string; role: MemberRole }>({ fullName: '', email: '', role: 'installer' });
   const [teamName, setTeamName] = useState('');
@@ -51,7 +52,7 @@ export default function TeamManagement({ members, teams, invites, canManageMembe
 
   return (
     <section className="space-y-6">
-      <CompanyDetailsEditor canEdit={canEditPermissions} />
+      <CompanyDetailsEditor canEdit={canEditCompany} />
       <div className="grid gap-6 xl:grid-cols-2">
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <div className="flex items-center justify-between gap-3">

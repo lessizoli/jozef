@@ -12,7 +12,7 @@ import { httpsCallable } from 'firebase/functions';
 import { auth, db, functions } from './firebase';
 import { getActiveUserContext } from './userContext';
 
-export type MemberRole = 'company_admin' | 'project_manager' | 'surveyor' | 'installer' | 'finance';
+export type MemberRole = 'company_admin' | 'project_manager' | 'office' | 'surveyor' | 'installer' | 'finance';
 
 export type CompanyMember = {
   id: string;
@@ -48,6 +48,7 @@ export type UserContext = {
 export const roleLabels: Record<MemberRole, string> = {
   company_admin: 'Céges adminisztrátor',
   project_manager: 'Projektvezető',
+  office: 'Iroda',
   surveyor: 'Felmérő',
   installer: 'Kivitelező',
   finance: 'Pénzügy',
